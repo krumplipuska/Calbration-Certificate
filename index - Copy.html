@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canva-Style Text Editor</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Include Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="main-navbar">
+        <span class="nav-title">Document Editor</span>
+        <div>
+            <button id="save-html" class="save-html-btn"><i class="fas fa-download"></i> Save as HTML</button>
+            <button id="edit-toggle" class="edit-toggle active"><i class="fas fa-pen"></i> Edit</button>
+        </div>
+    </nav>
+    <div class="text-toolbar" id="text-toolbar" style="display:none;">
+        <select id="font-family">
+            <option value="Arial">Arial</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Tahoma">Tahoma</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Courier New">Courier New</option>
+        </select>
+        <button id="font-size-decrease">-</button>
+        <span id="font-size-display">24</span>
+        <button id="font-size-increase">+</button>
+        <input type="color" id="font-color" title="Text color">
+        <button id="bold-btn" title="Bold"><i class="fas fa-bold"></i></button>
+        <button id="italic-btn" title="Italic"><i class="fas fa-italic"></i></button>
+        <button id="underline-btn" title="Underline"><i class="fas fa-underline"></i></button>
+        <button id="strike-btn" title="Strikethrough"><i class="fas fa-strikethrough"></i></button>
+        <button id="align-left" title="Align left"><i class="fas fa-align-left"></i></button>
+        <button id="align-center" title="Align center"><i class="fas fa-align-center"></i></button>
+        <button id="align-right" title="Align right"><i class="fas fa-align-right"></i></button>
+    </div>
+    <div class="app-container">
+        <div class="toolbar" id="add-toolbar">
+            <button id="add-text-btn"><i class="fas fa-font"></i> Add Text</button>
+        </div>
+        <div class="document-container">
+            <div class="document" id="document">
+                <!-- Text boxes will be added here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Include the JavaScript file -->
+    <script src="script.js"></script>
+</body>
+</html> 
