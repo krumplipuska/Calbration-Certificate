@@ -1,4 +1,5 @@
 import os
+import re
 
 def combine_files():
     try:
@@ -15,12 +16,14 @@ def combine_files():
             js_content = f.read()
 
         # Embed CSS and JS into HTML
+        # Remove external CSS and JS references if they exist
+        html_content = re.sub(r'<link[^>]*href=["\']?styles\.css["\']?[^>]*>\s*', '', html_content)
+        html_content = re.sub(r'<script[^>]*src=["\']?script\.js["\']?[^>]*>\s*</script>\s*', '', html_content)
+
         # Find the closing </head> tag and insert styles before it
         html_content = html_content.replace('</head>', f'<style>\n{css_content}\n</style>\n</head>')
 
         # Find the closing </body> tag and insert script before it
-        # Also, remove the existing <script src="script.js"></script> line
-        html_content = html_content.replace('<script src="script.js"></script>', '')
         html_content = html_content.replace('</body>', f'<script>\n{js_content}\n</script>\n</body>')
 
         # Write the combined content to a new HTML file
