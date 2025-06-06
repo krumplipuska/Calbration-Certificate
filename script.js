@@ -2131,4 +2131,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Update calls to the renamed function (This block seems like a remnant, ensure selectElement is fully removed or adapted)
-}); 
+});
