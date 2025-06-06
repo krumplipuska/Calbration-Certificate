@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canva-Style Text Editor</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Include Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- jQuery UI -->
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <!-- jsPDF and html2canvas for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <nav class="main-navbar">
+        <span class="nav-title">Document Editor</span>
+        <div class="navbar-buttons">
+            <button id="save-pdf" class="secondary-button"><i class="fas fa-file-pdf"></i> Save as PDF</button>
+            <button id="save-html" class="secondary-button"><i class="fas fa-download"></i> Save as HTML</button>
+            <button id="edit-toggle" class="primary-button active"><i class="fas fa-pen"></i> Edit</button>
+        </div>
+    </nav>
+    <div class="text-toolbar" id="text-toolbar" style="display:none;">
+        <select id="font-family">
+            <option value="Arial">Arial</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Tahoma">Tahoma</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Courier New">Courier New</option>
+        </select>
+        <button id="font-size-decrease">-</button>
+        <span id="font-size-display">24</span>
+        <button id="font-size-increase">+</button>
+        <input type="color" id="font-color" title="Text color">
+        <button id="bold-btn" title="Bold"><i class="fas fa-bold"></i></button>
+        <button id="italic-btn" title="Italic"><i class="fas fa-italic"></i></button>
+        <button id="underline-btn" title="Underline"><i class="fas fa-underline"></i></button>
+        <button id="strike-btn" title="Strikethrough"><i class="fas fa-strikethrough"></i></button>
+        <button id="align-left" title="Align left"><i class="fas fa-align-left"></i></button>
+        <button id="align-center" title="Align center"><i class="fas fa-align-center"></i></button>
+        <button id="align-right" title="Align right"><i class="fas fa-align-right"></i></button>
+        <!-- Canva-style rectangle controls -->
+        <button id="rect-fill-btn" class="toolbar-shape-btn" title="Fill color" style="display:none;">
+          <span class="fill-preview" id="rect-fill-preview" style="background:#6c757d;"></span>
+        </button>
+        <div id="rect-fill-popover" class="toolbar-popover" style="display:none;">
+          <label>Fill color</label>
+          <input type="color" id="rect-fill-color-picker">
+        </div>
+        <button id="rect-border-btn" class="toolbar-shape-btn" title="Border" style="display:none;">
+          <span class="border-preview" id="rect-border-preview">
+            <svg width="32" height="20"><rect x="4" y="4" width="24" height="12" rx="4" fill="none" stroke="#6c757d" stroke-width="2"/></svg>
+          </span>
+        </button>
+        <div id="rect-border-popover" class="toolbar-popover" style="display:none;">
+          <label>Border style</label>
+          <div class="border-style-options">
+            <button data-style="none" title="No border"><svg width="32" height="16"><line x1="4" y1="8" x2="28" y2="8" stroke="#bbb" stroke-width="2" stroke-dasharray="2,2"/></svg></button>
+            <button data-style="solid" title="Solid"><svg width="32" height="16"><line x1="4" y1="8" x2="28" y2="8" stroke="#222" stroke-width="3"/></svg></button>
+            <button data-style="dashed" title="Dashed"><svg width="32" height="16"><line x1="4" y1="8" x2="28" y2="8" stroke="#222" stroke-width="3" stroke-dasharray="6,4"/></svg></button>
+            <button data-style="dotted" title="Dotted"><svg width="32" height="16"><line x1="4" y1="8" x2="28" y2="8" stroke="#222" stroke-width="3" stroke-dasharray="2,4"/></svg></button>
+          </div>
+          <label style="margin-top:8px;">Border color</label>
+          <input type="color" id="rect-border-color-picker">
+          <label style="margin-top:8px;">Stroke weight</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="rect-border-weight-slider" min="0" max="20" value="2" style="flex:1;">
+            <input type="number" id="rect-border-weight-input" min="0" max="20" value="2" style="width: 45px; text-align: center;">
+          </div>
+        </div>
+        <button id="rect-corner-btn" class="toolbar-shape-btn" title="Corner rounding" style="display:none;">
+          <span class="corner-preview">
+            <svg width="32" height="20"><path d="M4,16 Q4,4 16,4" stroke="#222" stroke-width="2" fill="none"/></svg>
+          </span>
+        </button>
+        <div id="rect-corner-popover" class="toolbar-popover" style="display:none;">
+          <label>Corner rounding</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="rect-corner-slider" min="0" max="100" value="3" style="flex:1;">
+            <span id="rect-corner-value">3</span>
+          </div>
+        </div>
+        <!-- Transparency control -->
+        <button id="opacity-btn" class="toolbar-shape-btn" title="Transparency">
+          <span class="opacity-preview">
+            <svg width="22" height="22" viewBox="0 0 22 22">
+              <rect x="1" y="1" width="20" height="20" fill="#ccc"/>
+              <rect x="1" y="1" width="10" height="10" fill="#fff"/>
+              <rect x="11" y="11" width="10" height="10" fill="#fff"/>
+            </svg>
+          </span>
+        </button>
+        <div id="opacity-popover" class="toolbar-popover" style="display:none;">
+          <label>Transparency</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="opacity-slider" min="0" max="100" value="100" style="flex:1;">
+            <input type="number" id="opacity-input" min="0" max="100" value="100" style="width:45px;text-align:center;">
+          </div>
+        </div>
+    </div>
+    <div class="app-container">
+        <div class="toolbar" id="add-toolbar">
+            <button id="add-text-btn"><i class="fas fa-font"></i> Add Text</button>
+            <button id="add-image-frame-btn"><i class="fas fa-image"></i> Add Image Frame</button>
+            <button id="add-rectangle-btn"><i class="fas fa-vector-square"></i> Add Rectangle</button>
+        </div>
+        <div class="document-container">
+            <div class="document-pages">
+                <!-- page 1 -->
+                <div class="page-container" page-index="0">
+                    <div class="page-controls">
+                        <div class="page-header">
+                            <span class="page-title">Page 1</span>
+                            <div class="page-navigation">
+                                <button class="prev-page-btn" title="Previous Page"><i class="fas fa-chevron-up"></i></button>
+                                <button class="next-page-btn" title="Next Page"><i class="fas fa-chevron-down"></i></button>
+                                <button class="delete-page-btn" title="Delete Page"><i class="fas fa-trash"></i></button>
+                                <button class="add-page-btn" title="Add Page"><i class="fas fa-plus"></i></button>
+                            </div>
+                        </div>
+                        <div class="document" id="document">    </div>
+                    </div>
+                </div>
+
+                
+
+            </div>
+            <div id="marquee-selection"></div>
+            <div id="group-selection-outline" style="display:none;"></div>
+        </div>
+    </div>
+    <div class="zoom-slider-container">
+        <input type="range" id="zoom-slider" min="25" max="200" value="100">
+        <span id="zoom-percentage">100%</span>
+    </div>
+
+    <!-- Include the JavaScript file -->
+    <script src="script.js"></script>
+
+    <!-- Full Page Guide Lines -->
+    <div id="guide-line-v1" class="full-page-guide vertical"></div>
+    <div id="guide-line-v2" class="full-page-guide vertical"></div>
+    <div id="guide-line-h1" class="full-page-guide horizontal"></div>
+    <div id="guide-line-h2" class="full-page-guide horizontal"></div>
+    <!-- Page Specific Guide Lines -->
+    <div id="guide-line-page-h-center" class="full-page-guide horizontal page-guide"></div>
+    <div id="guide-line-page-v-center" class="full-page-guide vertical page-guide"></div>
+    <div id="guide-line-page-margin-top" class="full-page-guide horizontal page-guide"></div>
+    <div id="guide-line-page-margin-bottom" class="full-page-guide horizontal page-guide"></div>
+    <div id="guide-line-page-margin-left" class="full-page-guide vertical page-guide"></div>
+    <div id="guide-line-page-margin-right" class="full-page-guide vertical page-guide"></div>
+
+    <div class="element-details-panel" id="element-details-panel" style="display: none;">
+        <h4>Element Properties</h4>
+        <div class="detail-item">
+            <label for="detail-id">ID:</label>
+            <input type="text" id="detail-id">
+        </div>
+
+        <!-- Text-specific properties -->
+        <div id="text-props-group" class="props-group">
+            <div class="detail-item">
+                <label for="detail-text">Text:</label>
+                <textarea id="detail-text" rows="3"></textarea>
+            </div>
+        </div>
+
+        <!-- Image-frame-specific properties -->
+        <div id="image-props-group" class="props-group" style="display: none;">
+            <div class="detail-item">
+                <label for="detail-image-src">Image Source URL:</label>
+                <input type="text" id="detail-image-src">
+            </div>
+            <!-- Future image props like object-fit could go here -->
+        </div>
+
+        <div class="detail-group">
+            <div class="detail-item">
+                <label for="detail-x">X:</label>
+                <input type="number" id="detail-x">
+            </div>
+            <div class="detail-item">
+                <label for="detail-y">Y:</label>
+                <input type="number" id="detail-y">
+            </div>
+        </div>
+        <div class="detail-group">
+            <div class="detail-item">
+                <label for="detail-width">Width:</label>
+                <input type="number" id="detail-width">
+            </div>
+            <div class="detail-item">
+                <label for="detail-height">Height:</label>
+                <input type="number" id="detail-height">
+            </div>
+        </div>
+        <!-- More properties can be added here -->
+    </div>
+
+    <input type="file" id="image-file-input" accept="image/*" style="display: none;">
+
+    <div id="multi-select-toolbar" style="display:none; position:absolute; z-index:4000;">
+      <div class="floating-actions">
+        <div class="floating-action-btn group-btn" title="Group"><i class="fas fa-object-group"></i></div>
+        <div class="floating-action-btn lock-btn" title="Lock"><i class="fas fa-lock"></i></div>
+        <div class="floating-action-btn copy-btn" title="Copy"><i class="fas fa-copy"></i></div>
+        <div class="floating-action-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></div>
+        <div class="floating-action-btn more-btn" title="More"><i class="fas fa-ellipsis-h"></i></div>
+      </div>
+    </div>
+
+    <!-- Include jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Include jQuery UI -->
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+</body>
+</html> 
