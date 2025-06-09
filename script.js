@@ -1919,49 +1919,50 @@ document.addEventListener('DOMContentLoaded', () => {
                     // If multiple items are selected, dragging one should not change the fact that they are all selected.
                 }
 
-                let selectedElementsData = [];
-                const initialDraggedLeft = parseFloat($draggedOriginalElement.css('left')) || 0;
-                const initialDraggedTop = parseFloat($draggedOriginalElement.css('top')) || 0;
-                // console.log(`Dragged element initial CSS: Left=${initialDraggedLeft}, Top=${initialDraggedTop}`);
+                const zoom = getCurrentZoom();
+                const dragInfo = {
+                    startX: event.pageX,
+                    startY: event.pageY,
+                    zoom,
+                    elements: []
+                };
 
                 $('.selected').each(function() {
                     const $el = $(this);
-                    if ($el[0] !== $draggedOriginalElement[0]) { // Don't include the dragged element itself
-                        const elCssLeft = parseFloat($el.css('left')) || 0;
-                        const elCssTop = parseFloat($el.css('top')) || 0;
-                        selectedElementsData.push({
-                            element: $el,
-                            // Store initial CSS left/top relative to the dragged element's initial CSS left/top
-                            dx: elCssLeft - initialDraggedLeft,
-                            dy: elCssTop - initialDraggedTop
-                        });
+                    const entry = {
+                        element: $el,
+                        startLeft: parseFloat($el.css('left')) || 0,
+                        startTop: parseFloat($el.css('top')) || 0
+                    };
+                    if ($el[0] === $draggedOriginalElement[0]) {
+                        dragInfo.elements.unshift(entry);
+                    } else {
+                        dragInfo.elements.push(entry);
                     }
                 });
-                // Store this data on the ui.helper, which is what jQuery UI uses for drag context
-                ui.helper.data('selectedElementsData', selectedElementsData);
-                // console.log("Stored selectedElementsData on ui.helper:", selectedElementsData);
+
+                ui.helper.data('dragInfo', dragInfo);
             },
             drag: function(event, ui) {
-                // ui.helper is the element being dragged by jQuery UI (the visual representation)
-                // ui.position contains the new CSS top/left for ui.helper, relative to its offset parent
-                const selectedData = ui.helper.data('selectedElementsData');
+                const dragInfo = ui.helper.data('dragInfo');
+                if (!dragInfo) return;
 
-                // console.log(`Drag: Helper at CSS Left: ${ui.position.left}, CSS Top: ${ui.position.top}`);
+                const dx = (event.pageX - dragInfo.startX) / dragInfo.zoom;
+                const dy = (event.pageY - dragInfo.startY) / dragInfo.zoom;
 
-                if (selectedData && selectedData.length > 0) {
-                    $.each(selectedData, function(i, posData) {
-                        const newLeft = ui.position.left + posData.dx;
-                        const newTop = ui.position.top + posData.dy;
-                        // console.log(`  Moving ${posData.element[0].id || posData.element.attr('class')} to CSS Left: ${newLeft}, CSS Top: ${newTop} (dx:${posData.dx}, dy:${posData.dy})`);
-                        posData.element.css({
-                            left: newLeft + 'px',
-                            top: newTop + 'px'
-                        });
+                dragInfo.elements.forEach((info, index) => {
+                    const newLeft = info.startLeft + dx;
+                    const newTop = info.startTop + dy;
+                    info.element.css({
+                        left: newLeft + 'px',
+                        top: newTop + 'px'
                     });
-                } else if (selectedData && selectedData.length === 0) {
-                    // This means other items were selected but calculation resulted in empty data - check start logic
-                }
-                
+                    if (index === 0) {
+                        ui.position.left = newLeft;
+                        ui.position.top = newTop;
+                    }
+                });
+
                 // Update group outline during drag for multiple selections
                 if ($('.selected').length > 1) {
                     updateGroupOutline();
@@ -1980,7 +1981,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 // Clear stored data
-                ui.helper.removeData('selectedElementsData');
+                ui.helper.removeData('dragInfo');
                 // Update properties panel or other UI if necessary
                 // Consider if a 'selectionMoved' event is needed
                 $(document).trigger('selectionChanged'); // Update UI for potentially new positions
