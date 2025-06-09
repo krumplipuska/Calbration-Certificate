@@ -4,15 +4,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const addTextBtn = document.getElementById('add-text-btn');
     const addImageFrameBtn = document.getElementById('add-image-frame-btn');
     const addRectangleBtn = document.getElementById('add-rectangle-btn');
-    let selectedBoxes = [];
+    window.currentPage = 0; // The currently active page index
     let dragOffset = { x: 0, y: 0 };
     let resizing = false;
     let resizeDir = null;
     let startRect = null;
     let startMouse = null;
-    let editMode = true;
+    let editMode = false;
     const editToggle = document.getElementById('edit-toggle');
     const addToolbar = document.getElementById('add-toolbar');
+
+    // Global HTML for reusable components
+    const HANDLES_HTML = ['.nw', '.n', '.ne', '.e', '.se', '.s', '.sw', '.w'].map(dir => `<div class="resize-handle ${dir}"></div>`).join('');
+    const ACTIONS_HTML = `
+        <div class="floating-actions no-zoom-scale" style="display:none;">
+            <div class="floating-action-btn move-btn" title="Move"><i class="fas fa-arrows-alt"></i></div> <!-- Move handler removed, drag is global -->
+            <div class="floating-action-btn copy-btn" title="Copy"><i class="fas fa-copy"></i></div>
+            <div class="floating-action-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></div>
+        </div>`;
 
     // Details Panel Elements
     const detailsPanel = document.getElementById('element-details-panel');
@@ -46,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // const actions = element.querySelector('.floating-actions');
         // if (actions) {
             // const moveBtn = actions.querySelector('.move-btn'); // Move button functionality covered by draggable
-            // if (moveBtn) { moveBtn.onmousedown = ... }
+            // if (moveBtn) moveBtn.onmousedown = ... }
             // const copyBtn = actions.querySelector('.copy-btn');
             // if (copyBtn) { copyBtn.onclick = ... } // Will be replaced
             // const deleteBtn = actions.querySelector('.delete-btn');
@@ -145,14 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setBoxMinHeight(box, fontSize);
 
         // Add HTML for handles and actions
-        const handlesHTML = ['.nw', '.n', '.ne', '.e', '.se', '.s', '.sw', '.w'].map(dir => `<div class="resize-handle ${dir}"></div>`).join('');
-        const actionsHTML = `
-            <div class="floating-actions" style="display:none;">
-                <div class="floating-action-btn move-btn" title="Move"><i class="fas fa-arrows-alt"></i></div> <!-- Move handler removed, drag is global -->
-                <div class="floating-action-btn copy-btn" title="Copy"><i class="fas fa-copy"></i></div>
-                <div class="floating-action-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></div>
-            </div>`;
-        box.innerHTML += handlesHTML + actionsHTML; // Append controls structure
+        box.innerHTML += HANDLES_HTML + ACTIONS_HTML; // Append controls structure
 
         documentArea.appendChild(box);
         makeElementsDraggable($(box)); // Make it draggable
@@ -181,14 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
         frame.appendChild(contentWrapper);
 
         // Add HTML for handles and actions
-        const handlesHTML = ['.nw', '.n', '.ne', '.e', '.se', '.s', '.sw', '.w'].map(dir => `<div class="resize-handle ${dir}"></div>`).join('');
-        const actionsHTML = `
-            <div class="floating-actions" style="display:none;">
-                <div class="floating-action-btn move-btn" title="Move"><i class="fas fa-arrows-alt"></i></div> <!-- Move handler removed -->
-                <div class="floating-action-btn copy-btn" title="Copy"><i class="fas fa-copy"></i></div> 
-                <div class="floating-action-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></div>
-            </div>`;
-        frame.insertAdjacentHTML('beforeend', handlesHTML + actionsHTML);
+        frame.insertAdjacentHTML('beforeend', HANDLES_HTML + ACTIONS_HTML);
 
         // Attach the setImage method directly to the frame instance
         frame.setImage = function(imageUrl) {
@@ -201,14 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
             img.alt = "User Image";
             img.onerror = () => {
                 // Re-add controls and placeholder on error if they were part of innerHTML and got wiped.
-                const errHandlesHTML = ['.nw', '.n', '.ne', '.e', '.se', '.s', '.sw', '.w'].map(dir => `<div class="resize-handle ${dir}"></div>`).join('');
-                const errActionsHTML = `
-                    <div class="floating-actions" style="display:none;">
-                        <div class="floating-action-btn move-btn" title="Move"><i class="fas fa-arrows-alt"></i></div>
-                        <div class="floating-action-btn copy-btn" title="Copy"><i class="fas fa-copy"></i></div> 
-                        <div class="floating-action-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></div>
-                    </div>`;
-                this.innerHTML = '<div class="element-content"><p style="text-align:center; color: #777; font-size:12px;">Error loading image</p><i class="fas fa-image frame-placeholder-icon"></i></div>' + errHandlesHTML + errActionsHTML;
+                this.innerHTML = '<div class="element-content"><p style="text-align:center; color: #777; font-size:12px;">Error loading image</p><i class="fas fa-image frame-placeholder-icon"></i></div>' + HANDLES_HTML + ACTIONS_HTML;
                 this.classList.remove('has-image');
             };
             img.onload = () => {
@@ -259,14 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rectElement.appendChild(contentWrapper);
 
         // Add HTML for handles and actions
-        const handlesHTML = ['.nw', '.n', '.ne', '.e', '.se', '.s', '.sw', '.w'].map(dir => `<div class="resize-handle ${dir}"></div>`).join('');
-        const actionsHTML = `
-            <div class="floating-actions" style="display:none;">
-                <div class="floating-action-btn move-btn" title="Move"><i class="fas fa-arrows-alt"></i></div> <!-- Move handler removed -->
-                <div class="floating-action-btn copy-btn" title="Copy"><i class="fas fa-copy"></i></div>
-                <div class="floating-action-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></div>
-            </div>`;
-        rectElement.innerHTML += handlesHTML + actionsHTML;
+        rectElement.innerHTML += HANDLES_HTML + ACTIONS_HTML;
 
         documentArea.appendChild(rectElement);
         makeElementsDraggable($(rectElement)); // Make it draggable
@@ -320,31 +301,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Deselect on click outside
-    document.addEventListener('mousedown', e => {
-        if (
-            !e.target.closest('.text-box') &&
-            !e.target.closest('.image-frame') &&
-            !e.target.closest('.rectangle-element') &&
-            !e.target.closest('.group-container') &&
-            !e.target.closest('.text-toolbar') &&
-            !e.target.closest('.element-details-panel')
-        ) {
-            // Remove .selected from all elements
-            document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-            selectedBoxes.forEach(box => {
-                const fa = box.querySelector('.floating-actions');
-                if (fa) fa.style.display = 'none';
-                if (box.getAttribute('data-element-type') === 'text') {
-                    const content = box.querySelector('.text-content');
-                    if (content && (content.contentEditable === 'true' || content.contentEditable === true)) {
-                        content.contentEditable = false;
-                    }
-                }
-            });
-            selectedBoxes = [];
-            hideToolbar();
-            hideDetailsPanel();
-            updateMultiSelectToolbarAndOutline();
+    $(document).on('mousedown', function(e) {
+        // Only act in edit mode. In read mode, nothing should be selected/deselected by clicking.
+        if (!editMode) return;
+
+        // If the click is on an element or any of the toolbars/panels, do nothing.
+        if ($(e.target).closest('.text-box, .image-frame, .rectangle-element, .group-container, .text-toolbar, .element-details-panel, #floating-action-bar').length) {
+            return;
+        }
+
+        // If we are here, the click was on the "canvas" or another empty area.
+        // If there is a selection, clear it.
+        if ($('.selected').length > 0) {
+            $('.selected').removeClass('selected');
+            $(document).trigger('selectionChanged'); // This will handle hiding UI.
         }
     });
 
@@ -408,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
             box.style.width = newWidth + 'px';
             box.style.height = newHeight + 'px';
 
-            if (selectedBoxes.includes(box)) {
+            if ($(box).hasClass('selected')) {
                 updateDetailsPanelPosition(box);
                 updateDetailsPanelDimensions(box);
             }
@@ -417,7 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resizing = false;
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
-            if (selectedBoxes.includes(box)) {
+            if ($(box).hasClass('selected')) {
                  updateDetailsPanelPosition(box);
                  updateDetailsPanelDimensions(box);
             }
@@ -443,8 +413,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper: get selected text content div
     function getSelectedContent() {
-        if (!selectedBoxes.length) return null;
-        return selectedBoxes[selectedBoxes.length - 1].querySelector('.text-content');
+        const $selected = $('.selected');
+        if ($selected.length === 0) return null;
+
+        const lastSelected = $selected.last()[0];
+        if (lastSelected.getAttribute('data-element-type') !== 'text') return null;
+        
+        return lastSelected.querySelector('.text-content');
     }
 
     // Helper: rgb to hex (defined early)
@@ -720,37 +695,77 @@ document.addEventListener('DOMContentLoaded', () => {
         box.style.minHeight = (Math.round(px) + 2) + 'px';
     }
 
+    function updateCurrentPageBasedOnCenter() {
+        const pages = document.querySelectorAll('.page-container');
+        let mostCenteredPage = null;
+        let minDistance = Infinity;
+        const viewportCenterY = window.innerHeight / 2;
+
+        pages.forEach(page => {
+            const rect = page.getBoundingClientRect();
+            // Only consider pages that are at least partially in view
+            if (rect.top < window.innerHeight && rect.bottom > 0) {
+                const pageCenterY = rect.top + rect.height / 2;
+                const distance = Math.abs(pageCenterY - viewportCenterY);
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    mostCenteredPage = page;
+                }
+            }
+        });
+
+        if (mostCenteredPage) {
+            const pageIndex = parseInt(mostCenteredPage.getAttribute('page-index'), 10);
+            if (!isNaN(pageIndex)) {
+                window.currentPage = pageIndex;
+            }
+        }
+    }
+
     function setEditMode(on) {
         editMode = on;
         document.body.classList.toggle('edit-mode-active', editMode);
+        const allElements = '.text-box, .image-frame, .rectangle-element, .group-container';
 
         if (editMode) {
+            updateCurrentPageBasedOnCenter(); // Set current page when entering edit mode
             editToggle.classList.add('active');
+            editToggle.innerHTML = `<i class="fas fa-eye"></i> Read`;
             addToolbar.style.display = ''; // Show the main add toolbar
+            $(allElements).draggable('enable');
+
             // If an element is selected, update its floating actions display
-            if (selectedBoxes.length) {
-                const fa = selectedBoxes[selectedBoxes.length - 1].querySelector('.floating-actions');
+            const $selected = $('.selected');
+            if ($selected.length) {
+                const fa = $selected.last()[0].querySelector('.floating-actions');
                 if (fa) fa.style.display = 'flex';
                 // If the selected element is a text box, also show the text toolbar
-                if (selectedBoxes[selectedBoxes.length - 1].getAttribute('data-element-type') === 'text') {
-                    showToolbarForBox(selectedBoxes[selectedBoxes.length - 1]);
+                if ($selected.last()[0].getAttribute('data-element-type') === 'text') {
+                    showToolbarForBox($selected.last()[0]);
                 }
             }
         } else {
             editToggle.classList.remove('active');
+            editToggle.innerHTML = `<i class="fas fa-pen"></i> Edit`;
             addToolbar.style.display = 'none'; // Hide the main add toolbar
+            
+            // Disable dragging
+            $(allElements).draggable('disable');
+
+            // Deselect all elements and update UI
+            if ($('.selected').length > 0) {
+                $('.selected').removeClass('selected');
+                $(document).trigger('selectionChanged'); // This will hide all selection-based UI
+            }
+
             document.querySelectorAll('.floating-actions').forEach(fa => fa.style.display = 'none');
             hideToolbar(); // Hide text specific toolbar
+            hideDetailsPanel(); // Also hide the details panel
             // When turning off edit mode, make all text content non-editable
             document.querySelectorAll('.text-content').forEach(tc => {
                 tc.contentEditable = false;
             });
-             if (selectedBoxes.length) { // If an element was selected, ensure its content is non-editable too if text
-                if (selectedBoxes[selectedBoxes.length - 1].getAttribute('data-element-type') === 'text') {
-                    const content = selectedBoxes[selectedBoxes.length - 1].querySelector('.text-content');
-                    if (content) content.contentEditable = false;
-                }
-            }
         }
     }
 
@@ -780,30 +795,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Ensure handles and actions HTML structure exists (for elements loaded from static HTML)
         if (!box.querySelector('.resize-handle')) { // Check if any resize handle exists
-            const handlesHTML = ['.nw', '.n', '.ne', '.e', '.se', '.s', '.sw', '.w'].map(dir => `<div class="resize-handle ${dir}"></div>`).join('');
-            box.insertAdjacentHTML('beforeend', handlesHTML);
+            box.insertAdjacentHTML('beforeend', HANDLES_HTML);
         }
         if (!box.querySelector('.floating-actions')) {
-            const actionsHTML = `
-                <div class="floating-actions" style="display:none;">
-                    <div class="floating-action-btn move-btn" title="Move"><i class="fas fa-arrows-alt"></i></div> <!-- Move handler removed, drag is global -->
-                    <div class="floating-action-btn copy-btn" title="Copy"><i class="fas fa-copy"></i></div>
-                    <div class="floating-action-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></div>
-                </div>`;
-            box.insertAdjacentHTML('beforeend', actionsHTML);
+            box.insertAdjacentHTML('beforeend', ACTIONS_HTML);
+        }
+        // Ensure .no-zoom-scale class is present
+        const fa = box.querySelector('.floating-actions');
+        if (fa && !fa.classList.contains('no-zoom-scale')) {
+            fa.classList.add('no-zoom-scale');
         }
         
         // For image frames loaded from HTML, re-attach .setImage method if needed
         if (box.getAttribute('data-element-type') === 'image_frame' && typeof box.setImage !== 'function') {
-            // Define HTML for controls to be re-added on image load error
-            const handlesForError = ['.nw', '.n', '.ne', '.e', '.se', '.s', '.sw', '.w'].map(dir => `<div class="resize-handle ${dir}"></div>`).join('');
-            const actionsForError = `
-                <div class="floating-actions" style="display:none;">
-                    <div class="floating-action-btn move-btn" title="Move"><i class="fas fa-arrows-alt"></i></div>
-                    <div class="floating-action-btn copy-btn" title="Copy"><i class="fas fa-copy"></i></div> 
-                    <div class="floating-action-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></div>
-                </div>`;
-
             box.setImage = function(imageUrl) {
                 let currentPlaceholder = this.querySelector('.frame-placeholder-icon');
                 if (currentPlaceholder) currentPlaceholder.remove();
@@ -815,12 +819,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 img.src = imageUrl;
                 img.alt = "User Image";
                 img.onerror = () => {
-                    // Clear content and add error message, placeholder, and controls
-                    let placeholderIcon = document.createElement('i');
-                    placeholderIcon.className = 'fas fa-image frame-placeholder-icon';
-                    this.innerHTML = '<p style="text-align:center; color: #777; font-size:12px;">Error loading image</p>';
-                    this.appendChild(placeholderIcon); // Add placeholder back
-                    this.insertAdjacentHTML('beforeend', handlesForError + actionsForError); // Add controls
+                    // Re-create the content and controls on error
+                    this.innerHTML = '<div class="element-content"><p style="text-align:center; color: #777; font-size:12px;">Error loading image</p><i class="fas fa-image frame-placeholder-icon"></i></div>' + HANDLES_HTML + ACTIONS_HTML;
                     this.classList.remove('has-image');
                 };
                 img.onload = () => { 
@@ -986,26 +986,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.addEventListener('scroll', () => {
-        const pages = document.querySelectorAll('.page-container');
-        pages.forEach((container, index) => {
-            if (container.getBoundingClientRect().top <= window.innerHeight && container.getBoundingClientRect().bottom >= 0) {
-            if (typeof window.currentPage === 'undefined') {
-                window.currentPage = 0;
-            }
-
-            const rect = container.getBoundingClientRect();
-            const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
-            
-            if (visibleHeight > 0) {
-                const currentPageRect = document.querySelector(`[page-index="${window.currentPage}"]`).getBoundingClientRect();
-                const currentPageVisibleHeight = Math.min(currentPageRect.bottom, window.innerHeight) - Math.max(currentPageRect.top, 0);
-                
-                if (visibleHeight > currentPageVisibleHeight) {
-                    window.currentPage = index;
-                }
-            }
-            }
-        });
+        updateCurrentPageBasedOnCenter();
     });
 
     const zoomSlider = document.getElementById('zoom-slider');
@@ -1018,6 +999,12 @@ document.addEventListener('DOMContentLoaded', () => {
             zoomPercentage.textContent = `${zoom}%`;
             documentPages.style.transform = `scale(${zoom / 100})`;
             documentPages.style.transformOrigin = 'top center';
+            // Inverse scale for floating action buttons
+            const scale = 100 / zoom;
+            document.querySelectorAll('.no-zoom-scale').forEach(el => {
+                el.style.transform = `scale(${scale})`;
+                el.style.transformOrigin = 'top center';
+            });
         });
     }
 
@@ -1034,6 +1021,12 @@ document.addEventListener('DOMContentLoaded', () => {
             zoomPercentage.textContent = `${zoom}%`;
             documentPages.style.transform = `scale(${zoom / 100})`;
             documentPages.style.transformOrigin = 'top center';
+            // Inverse scale for floating action buttons
+            const scale = 100 / zoom;
+            document.querySelectorAll('.no-zoom-scale').forEach(el => {
+                el.style.transform = `scale(${scale})`;
+                el.style.transformOrigin = 'top center';
+            });
         }
     }, { passive: false });
 
@@ -1181,9 +1174,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (detailsPanel) {
         detailId.addEventListener('input', () => {
-            if (selectedBoxes.length && !isUpdatingFromPanel) {
+            const $selected = $('.selected');
+            if ($selected.length && !isUpdatingFromPanel) {
                 const newId = detailId.value.trim();
-                const currentId = selectedBoxes[selectedBoxes.length - 1].id;
+                const currentId = $selected.last()[0].id;
 
                 if (!newId) {
                     alert("ID cannot be empty. Reverting to the previous ID.");
@@ -1200,41 +1194,47 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert(`ID '${newId}' is already in use by another element. Please choose a different ID.`);
                     detailId.value = currentId;
                 } else {
-                    selectedBoxes[selectedBoxes.length - 1].id = newId;
+                    $selected.last()[0].id = newId;
                 }
             }
         });
         detailText.addEventListener('input', () => {
-            if (selectedBoxes.length && selectedBoxes[selectedBoxes.length - 1].getAttribute('data-element-type') === 'text' && !isUpdatingFromPanel) {
-                const content = selectedBoxes[selectedBoxes.length - 1].querySelector('.text-content');
+            const $selected = $('.selected');
+            if ($selected.length && $selected.last()[0].getAttribute('data-element-type') === 'text' && !isUpdatingFromPanel) {
+                const content = $selected.last()[0].querySelector('.text-content');
                 if (content) content.innerText = detailText.value;
             }
         });
         detailImageSrc.addEventListener('input', () => {
-            if (selectedBoxes.length && selectedBoxes[selectedBoxes.length - 1].getAttribute('data-element-type') === 'image_frame' && !isUpdatingFromPanel) {
-                if (selectedBoxes[selectedBoxes.length - 1].setImage) {
-                    selectedBoxes[selectedBoxes.length - 1].setImage(detailImageSrc.value); 
+            const $selected = $('.selected');
+            if ($selected.length && $selected.last()[0].getAttribute('data-element-type') === 'image_frame' && !isUpdatingFromPanel) {
+                if ($selected.last()[0].setImage) {
+                    $selected.last()[0].setImage(detailImageSrc.value); 
                 }
             }
         });
         detailX.addEventListener('input', () => {
-            if (selectedBoxes.length && !isUpdatingFromPanel) {
-                selectedBoxes[selectedBoxes.length - 1].style.left = detailX.value + 'px';
+            const $selected = $('.selected');
+            if ($selected.length && !isUpdatingFromPanel) {
+                $selected.last()[0].style.left = detailX.value + 'px';
             }
         });
         detailY.addEventListener('input', () => {
-            if (selectedBoxes.length && !isUpdatingFromPanel) {
-                selectedBoxes[selectedBoxes.length - 1].style.top = detailY.value + 'px';
+            const $selected = $('.selected');
+            if ($selected.length && !isUpdatingFromPanel) {
+                $selected.last()[0].style.top = detailY.value + 'px';
             }
         });
         detailWidth.addEventListener('input', () => {
-            if (selectedBoxes.length && !isUpdatingFromPanel) {
-                selectedBoxes[selectedBoxes.length - 1].style.width = detailWidth.value + 'px';
+            const $selected = $('.selected');
+            if ($selected.length && !isUpdatingFromPanel) {
+                $selected.last()[0].style.width = detailWidth.value + 'px';
             }
         });
         detailHeight.addEventListener('input', () => {
-            if (selectedBoxes.length && !isUpdatingFromPanel) {
-                selectedBoxes[selectedBoxes.length - 1].style.height = detailHeight.value + 'px';
+            const $selected = $('.selected');
+            if ($selected.length && !isUpdatingFromPanel) {
+                $selected.last()[0].style.height = detailHeight.value + 'px';
             }
         });
     }
@@ -1359,8 +1359,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fill color picker
     if (rectFillColorPicker) {
         rectFillColorPicker.addEventListener('input', () => {
-            if (selectedBoxes.length && selectedBoxes[selectedBoxes.length - 1].getAttribute('data-element-type') === 'rectangle') {
-                selectedBoxes[selectedBoxes.length - 1].style.backgroundColor = rectFillColorPicker.value;
+            const $selected = $('.selected');
+            if ($selected.length && $selected.last()[0].getAttribute('data-element-type') === 'rectangle') {
+                $selected.last()[0].style.backgroundColor = rectFillColorPicker.value;
                 const fillPreview = document.getElementById('rect-fill-preview');
                 if (fillPreview) fillPreview.style.backgroundColor = rectFillColorPicker.value;
             }
@@ -1370,14 +1371,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Border style selection
     document.querySelectorAll('#rect-border-popover .border-style-options button').forEach(btn => {
         btn.onclick = () => {
-            if (selectedBoxes.length && selectedBoxes[selectedBoxes.length - 1].getAttribute('data-element-type') === 'rectangle') {
-                selectedBoxes[selectedBoxes.length - 1].style.borderStyle = btn.getAttribute('data-style') === 'none' ? 'none' : btn.getAttribute('data-style');
+            const $selected = $('.selected');
+            if ($selected.length && $selected.last()[0].getAttribute('data-element-type') === 'rectangle') {
+                const selectedEl = $selected.last()[0];
+                selectedEl.style.borderStyle = btn.getAttribute('data-style') === 'none' ? 'none' : btn.getAttribute('data-style');
                 if (btn.getAttribute('data-style') === 'none') {
-                    selectedBoxes[selectedBoxes.length - 1].style.borderWidth = '0px';
-                } else if (!selectedBoxes[selectedBoxes.length - 1].style.borderWidth || selectedBoxes[selectedBoxes.length - 1].style.borderWidth === '0px' || selectedBoxes[selectedBoxes.length - 1].style.borderWidth === '0'){
-                    selectedBoxes[selectedBoxes.length - 1].style.borderWidth = '2px';
+                    selectedEl.style.borderWidth = '0px';
+                } else if (!selectedEl.style.borderWidth || selectedEl.style.borderWidth === '0px' || selectedEl.style.borderWidth === '0'){
+                    selectedEl.style.borderWidth = '2px';
                 }
-                updateBorderStylePreview(selectedBoxes[selectedBoxes.length - 1]);
+                updateBorderStylePreview(selectedEl);
             }
         };
     });
@@ -1385,9 +1388,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Border color picker
     if (rectBorderColorPicker) {
         rectBorderColorPicker.addEventListener('input', () => {
-            if (selectedBoxes.length && selectedBoxes[selectedBoxes.length - 1].getAttribute('data-element-type') === 'rectangle') {
-                selectedBoxes[selectedBoxes.length - 1].style.borderColor = rectBorderColorPicker.value;
-                updateBorderStylePreview(selectedBoxes[selectedBoxes.length - 1]);
+            const $selected = $('.selected');
+            if ($selected.length && $selected.last()[0].getAttribute('data-element-type') === 'rectangle') {
+                $selected.last()[0].style.borderColor = rectBorderColorPicker.value;
+                updateBorderStylePreview($selected.last()[0]);
             }
         });
     }
@@ -1395,32 +1399,36 @@ document.addEventListener('DOMContentLoaded', () => {
     // Border weight slider and input
     if (borderWeightSlider && borderWeightInput) {
         borderWeightSlider.addEventListener('input', () => {
-            if (selectedBoxes.length && selectedBoxes[selectedBoxes.length - 1].getAttribute('data-element-type') === 'rectangle') {
+            const $selected = $('.selected');
+            if ($selected.length && $selected.last()[0].getAttribute('data-element-type') === 'rectangle') {
+                const selectedEl = $selected.last()[0];
                 const newWeight = borderWeightSlider.value;
-                selectedBoxes[selectedBoxes.length - 1].style.borderWidth = newWeight + 'px';
+                selectedEl.style.borderWidth = newWeight + 'px';
                 borderWeightInput.value = newWeight;
-                if (parseInt(newWeight) > 0 && (selectedBoxes[selectedBoxes.length - 1].style.borderStyle === 'none' || !selectedBoxes[selectedBoxes.length - 1].style.borderStyle)) {
-                    selectedBoxes[selectedBoxes.length - 1].style.borderStyle = 'solid';
+                if (parseInt(newWeight) > 0 && (selectedEl.style.borderStyle === 'none' || !selectedEl.style.borderStyle)) {
+                    selectedEl.style.borderStyle = 'solid';
                 } else if (parseInt(newWeight) === 0) {
-                    selectedBoxes[selectedBoxes.length - 1].style.borderStyle = 'none';
+                    selectedEl.style.borderStyle = 'none';
                 }
-                updateBorderStylePreview(selectedBoxes[selectedBoxes.length - 1]);
+                updateBorderStylePreview(selectedEl);
             }
         });
         borderWeightInput.addEventListener('input', () => {
-            if (selectedBoxes.length && selectedBoxes[selectedBoxes.length - 1].getAttribute('data-element-type') === 'rectangle') {
+            const $selected = $('.selected');
+            if ($selected.length && $selected.last()[0].getAttribute('data-element-type') === 'rectangle') {
+                const selectedEl = $selected.last()[0];
                 let newWeight = parseInt(borderWeightInput.value);
                 if (isNaN(newWeight)) newWeight = 0;
                 newWeight = Math.max(0, Math.min(20, newWeight));
                 borderWeightInput.value = newWeight;
-                selectedBoxes[selectedBoxes.length - 1].style.borderWidth = newWeight + 'px';
+                selectedEl.style.borderWidth = newWeight + 'px';
                 borderWeightSlider.value = newWeight;
-                if (newWeight > 0 && (selectedBoxes[selectedBoxes.length - 1].style.borderStyle === 'none' || !selectedBoxes[selectedBoxes.length - 1].style.borderStyle)) {
-                    selectedBoxes[selectedBoxes.length - 1].style.borderStyle = 'solid';
+                if (newWeight > 0 && (selectedEl.style.borderStyle === 'none' || !selectedEl.style.borderStyle)) {
+                    selectedEl.style.borderStyle = 'solid';
                 } else if (newWeight === 0) {
-                    selectedBoxes[selectedBoxes.length - 1].style.borderStyle = 'none';
+                    selectedEl.style.borderStyle = 'none';
                 }
-                updateBorderStylePreview(selectedBoxes[selectedBoxes.length - 1]);
+                updateBorderStylePreview(selectedEl);
             }
         });
     }
@@ -1428,17 +1436,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Corner rounding slider
     if (cornerSlider && cornerValueDisplay) {
         cornerSlider.addEventListener('input', () => {
-            if (selectedBoxes.length && selectedBoxes[selectedBoxes.length - 1].getAttribute('data-element-type') === 'rectangle') {
-                selectedBoxes[selectedBoxes.length - 1].style.borderRadius = cornerSlider.value + 'px';
+            const $selected = $('.selected');
+            if ($selected.length && $selected.last()[0].getAttribute('data-element-type') === 'rectangle') {
+                $selected.last()[0].style.borderRadius = cornerSlider.value + 'px';
                 cornerValueDisplay.textContent = cornerSlider.value;
-                updateCornerPreview(selectedBoxes[selectedBoxes.length - 1]);
+                updateCornerPreview($selected.last()[0]);
             }
         });
     }
 
     // Keyboard delete for selected elements
     document.addEventListener('keydown', (e) => {
-        if (!editMode || !selectedBoxes.length) return; // Only in edit mode and if an element is selected
+        if (!editMode || $('.selected').length === 0) return; // Only in edit mode and if an element is selected
 
         // Check if the event target is an input, textarea, or contentEditable element
         const targetTagName = e.target.tagName.toLowerCase();
@@ -1448,14 +1457,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (e.key === 'Delete' || e.key === 'Backspace') {
             e.preventDefault(); // Prevent default browser action (e.g., back navigation for Backspace)
-            
-            selectedBoxes.forEach(box => box.remove());
-            selectedBoxes = [];
-            hideDetailsPanel();
-            hideToolbar();
-            // Hide floating actions of the deleted box (though it's removed, good practice)
-            const fa = selectedBoxes[selectedBoxes.length - 1]?.querySelector('.floating-actions'); 
-            if (fa) fa.style.display = 'none';
+            deleteSelectedElements();
         }
     });
 
@@ -1476,7 +1478,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Opacity slider/input listeners
     if (opacitySlider && opacityInput) {
         opacitySlider.addEventListener('input', () => {
-            selectedBoxes.forEach(box => {
+            $('.selected').each(function() {
+                const box = this;
                 let content = box.querySelector('.element-content');
                 if (box.getAttribute('data-element-type') === 'rectangle') {
                     content = content.querySelector('.rectangle-bg');
@@ -1490,7 +1493,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isNaN(value)) value = 100;
             value = Math.max(0, Math.min(100, value));
             opacityInput.value = value;
-            selectedBoxes.forEach(box => {
+            $('.selected').each(function() {
+                const box = this;
                 let content = box.querySelector('.element-content');
                 if (box.getAttribute('data-element-type') === 'rectangle') {
                     content = content.querySelector('.rectangle-bg');
@@ -1515,6 +1519,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Selection by click
     $(document).on('mousedown', '.text-box, .image-frame, .rectangle-element, .group-container', function(e) {
+        if (!editMode) return;
         // Do not interfere if clicking on handles, buttons, or an element already being dragged by UI, or if the target is contenteditable.
         if ($(e.target).closest('.resize-handle, .floating-action-btn, .ui-draggable-dragging').length || e.target.isContentEditable) {
             return;
@@ -1573,13 +1578,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // If jQuery UI draggable starts, it will call e.preventDefault().
     });
 
-    // Deselect on click outside
-    $(document).on('mousedown', function(e) {
-        if (!$(e.target).closest('.text-box, .image-frame, .rectangle-element, .group-container').length) {
-            $('.selected').removeClass('selected');
-        }
-    });
-
     // --- jQuery Lasso (Marquee) Selection ---
     let lassoStart = null;
     let $lassoBox = $('#marquee-selection');
@@ -1589,6 +1587,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $lassoBox.hide();
 
     $(document).on('mousedown', '.document', function(e) {
+        if (!editMode) return;
         if ($(e.target).closest('.text-box, .image-frame, .rectangle-element, .group-container').length) return;
         lassoStart = { x: e.pageX, y: e.pageY };
         $lassoBox.css({
@@ -1847,6 +1846,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function makeElementsDraggable(selector) {
         $(selector).draggable({
             handle: false, // Allow dragging from anywhere on the element
+            disabled: !editMode, // Initially disable if not in edit mode
             start: function(event, ui) {
                 const $draggedOriginalElement = $(this); // The element the user initiated the drag on
                 // console.log("Drag Start on:", $draggedOriginalElement[0].id || $draggedOriginalElement.attr('class'), "UI Helper:", ui.helper[0].id || ui.helper.attr('class'));
@@ -1975,26 +1975,30 @@ document.addEventListener('DOMContentLoaded', () => {
     // This should be the single source of truth for reacting to selection changes.
     $(document).on('selectionChanged', function() {
         const $selected = $('.selected');
-        console.log('selectionChanged event triggered. Number of selected elements:', $selected.length);
+        
+        // When selection changes, ensure any text box that is no longer selected is not editable.
+        $('.text-box').not('.selected').find('.text-content').prop('contentEditable', false);
+
+        // If nothing is selected, clear any active text selection in the document.
+        if ($selected.length === 0) {
+            if (window.getSelection) {
+                window.getSelection().removeAllRanges();
+            } else if (document.selection) { // For older IE
+                document.selection.empty();
+            }
+        }
         
         // Defer the UI update slightly to allow browser to process layout changes
         setTimeout(function() {
-            console.log("Calling updateMultiSelectToolbarAndOutline from setTimeout");
             updateMultiSelectToolbarAndOutline(); // Call the updated function
 
             if ($selected.length === 1) {
                 const selectedElement = $selected[0]; // Get the DOM element
-                showToolbarForBox(selectedElement); // Adapt these functions if they still use selectedBoxes
-                showElementDetails(selectedElement); // Adapt these functions if they still use selectedBoxes
-                // console.log("Single element selected:", selectedElement.id || $(selectedElement).attr('class'));
-            } else if ($selected.length > 1) {
-                hideToolbar(); // Hide single-element text/shape toolbar
-                hideDetailsPanel(); // Hide single-element details panel
-                // console.log("Multiple elements selected:", $selected.map((i,el) => el.id || $(el).attr('class')).get());
+                showToolbarForBox(selectedElement);
+                showElementDetails(selectedElement);
             } else {
                 hideToolbar();
                 hideDetailsPanel();
-                // console.log("No elements selected.");
             }
         }, 0); // Zero delay pushes to next event loop tick
     });
@@ -2131,4 +2135,74 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Update calls to the renamed function (This block seems like a remnant, ensure selectElement is fully removed or adapted)
+
+    /**
+     * Makes a text element's content editable, focuses it, and selects the text.
+     * @param {HTMLElement} textElement The text box element to make editable.
+     */
+    function makeTextElementEditable(textElement) {
+        if (!editMode || !textElement) return;
+
+        const content = textElement.querySelector('.text-content');
+        if (content && content.contentEditable !== 'true') {
+            content.contentEditable = true;
+            content.focus();
+
+            // Select all text inside for easy replacement
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(content);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+    }
+
+    // Double-click to edit text
+    $(document).on('dblclick', '.text-box', function(e) {
+        makeTextElementEditable(this);
+    });
+
+    // Add logic for global floating action bar
+    const floatingActionBar = document.getElementById('floating-action-bar');
+
+    function updateFloatingActionBar() {
+        const $selected = $('.selected');
+        if ($selected.length === 0 || !editMode) {
+            floatingActionBar.style.display = 'none';
+            return;
+        }
+        // Compute bounding box of all selected elements
+        let minLeft = Infinity, minTop = Infinity, maxRight = -Infinity;
+        $selected.each(function() {
+            const rect = this.getBoundingClientRect();
+            minLeft = Math.min(minLeft, rect.left);
+            minTop = Math.min(minTop, rect.top);
+            maxRight = Math.max(maxRight, rect.right);
+        });
+        // Position the bar centered above the selection
+        const barWidth = floatingActionBar.offsetWidth;
+        const left = minLeft + (maxRight - minLeft) / 2 - barWidth / 2 + window.scrollX;
+        const top = minTop - 48 + window.scrollY; // 48px above
+        floatingActionBar.style.left = left + 'px';
+        floatingActionBar.style.top = top + 'px';
+        floatingActionBar.style.display = 'block';
+        console.log('Floating action bar shown at', left, top, 'bar width', barWidth);
+    }
+
+    $(document).on('selectionChanged', function() {
+        setTimeout(updateFloatingActionBar, 0);
+    });
+    window.addEventListener('resize', updateFloatingActionBar);
+    if (zoomSlider) zoomSlider.addEventListener('input', updateFloatingActionBar);
+    // Hide on deselect
+    $(document).on('mousedown', function(e) {
+        if (!editMode) return;
+        if ($(e.target).closest('.text-box, .image-frame, .rectangle-element, .group-container, .text-toolbar, .element-details-panel, #floating-action-bar').length) {
+            return;
+        }
+        if ($('.selected').length > 0) {
+            $('.selected').removeClass('selected');
+            $(document).trigger('selectionChanged');
+        }
+    });
 });

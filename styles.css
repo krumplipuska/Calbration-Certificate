@@ -971,14 +971,14 @@ body {
     display: none;
 }
 
-#multi-select-toolbar {
-    display: none;
+#floating-action-bar {
     position: absolute;
-    z-index: 4000;
-    pointer-events: none; /* Only the buttons inside are clickable */
+    z-index: 5000;
+    display: none;
+    pointer-events: none;
 }
-#multi-select-toolbar .floating-actions {
-    display: flex;
+#floating-action-bar .floating-actions {
+    display: flex !important;
     gap: 10px;
     background: #fff;
     border-radius: 12px;
@@ -986,7 +986,7 @@ body {
     padding: 6px 12px 6px 12px;
     pointer-events: auto;
 }
-#multi-select-toolbar .floating-action-btn {
+#floating-action-bar .floating-action-btn {
     width: 32px;
     height: 32px;
     border-radius: 50%;
@@ -1001,24 +1001,13 @@ body {
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
 }
-#multi-select-toolbar .floating-action-btn:hover {
+#floating-action-bar .floating-action-btn:hover {
     background: #E10600;
     color: #fff;
 }
-
-#group-selection-outline {
-    position: absolute;
-    border: 1px dashed #007bff; /* Example: Blue dashed line, similar to Canva's */
-    pointer-events: none; /* Should not interfere with mouse events */
-    z-index: 1999; /* Below marquee, above elements */
-    display: none;
-    box-sizing: border-box;
-}
-
-/* Hide action buttons during drag operation */
-body.dragging-active #multi-select-toolbar,
-body.dragging-active .floating-actions {
-    display: none !important; /* Use !important to override inline styles set by JS if necessary */
+/* Remove .no-zoom-scale and #multi-select-toolbar styles */
+.no-zoom-scale, #multi-select-toolbar, #group-selection-outline {
+    display: none !important;
 }
 
 
