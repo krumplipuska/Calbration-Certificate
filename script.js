@@ -1552,15 +1552,24 @@ document.addEventListener('DOMContentLoaded', () => {
     let dragPositions = null;
 
     // Selection by click with group support
-    $(document).on('mousedown', '.text-box, .image-frame, .rectangle-element', function(e) {
+    $(document).on('mousedown', '.text-box, .image-frame, .rectangle-element, .group-container', function(e) {
         if (!editMode) return;
         // Do not interfere if clicking on handles, buttons, or an element already being dragged by UI, or if the target is contenteditable.
         if ($(e.target).closest('.resize-handle, .floating-action-btn, .ui-draggable-dragging').length || e.target.isContentEditable) {
             return;
         }
 
+        // If the clicked element is a child inside a group container, operate on the group container
+        let targetEl = this;
+        if (!$(this).hasClass('group-container')) {
+            const parentGroup = $(this).closest('.group-container');
+            if (parentGroup.length) {
+                targetEl = parentGroup[0];
+            }
+        }
+
         const isMultiSelect = e.shiftKey || e.ctrlKey || e.metaKey;
-        const groupMembers = getGroupMembers(this);
+        const groupMembers = getGroupMembers(targetEl);
 
         if (isMultiSelect) {
             const allSelected = $(groupMembers).filter('.selected').length === groupMembers.length;
@@ -1575,7 +1584,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Clear previouslySelected flag for elements not currently part of the interaction
-        $('.text-box, .image-frame, .rectangle-element').not(this).removeData('previouslySelected');
+        $('.text-box, .image-frame, .rectangle-element, .group-container').not(targetEl).removeData('previouslySelected');
         
         // DO NOT call e.preventDefault() here. Let jQuery UI Draggable decide.
     });
