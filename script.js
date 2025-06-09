@@ -362,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startMouse = { x: e.clientX / zoom, y: e.clientY / zoom };
 
         // temporarily disable dragging while resizing
-        elements.forEach(el => { $(el).draggable('disable'); });
+        // dragging handled manually, flag prevents startDrag
 
         function onMove(ev) {
             const mouseX = ev.clientX / zoom;
@@ -445,7 +445,6 @@ document.addEventListener('DOMContentLoaded', () => {
             resizing = false;
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
-            elements.forEach(el => { $(el).draggable('enable'); });
             if ($('.selected').length > 1) {
                 updateGroupOutline();
             }
@@ -794,7 +793,6 @@ document.addEventListener('DOMContentLoaded', () => {
             editToggle.classList.add('active');
             editToggle.innerHTML = `<i class="fas fa-eye"></i> Read`;
             addToolbar.style.display = ''; // Show the main add toolbar
-            $(allElements).draggable('enable');
 
             // If an element is selected, update its floating actions display
             const $selected = $('.selected');
@@ -811,8 +809,7 @@ document.addEventListener('DOMContentLoaded', () => {
             editToggle.innerHTML = `<i class="fas fa-pen"></i> Edit`;
             addToolbar.style.display = 'none'; // Hide the main add toolbar
             
-            // Disable dragging
-            $(allElements).draggable('disable');
+
 
             // Deselect all elements and update UI
             if ($('.selected').length > 0) {
@@ -1594,10 +1591,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- jQuery Universal Selection, Lasso, and Movement ---
+    // --- Universal Selection, Lasso, and Movement ---
 
     let dragStart = null;
-    let dragPositions = null;
+    let dragInfo = null;
+    let isDragging = false;
 
     // Selection by click with group support
     $(document).on('mousedown', '.text-box, .image-frame, .rectangle-element, .group-container', function(e) {
@@ -1633,8 +1631,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Clear previouslySelected flag for elements not currently part of the interaction
         $('.text-box, .image-frame, .rectangle-element, .group-container').not(targetEl).removeData('previouslySelected');
-        
-        // DO NOT call e.preventDefault() here. Let jQuery UI Draggable decide.
+
+        // Prepare for possible drag
+        startDrag(e);
+
+        // Prevent text selection on drag start
+        e.preventDefault();
     });
 
     // --- jQuery Lasso (Marquee) Selection ---
@@ -1699,6 +1701,70 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         e.preventDefault();
     });
+
+    function startDrag(e) {
+        if (!editMode || resizing || e.button !== 0) return;
+        if ($('.selected').length === 0) return;
+        const $target = $(e.target).closest('.text-box, .image-frame, .rectangle-element, .group-container');
+        if ($target.hasClass('locked')) return;
+
+        dragStart = { x: e.clientX, y: e.clientY };
+        const zoom = getCurrentZoom();
+        dragInfo = {
+            zoom,
+            elements: $('.selected').map(function() {
+                return {
+                    el: this,
+                    startLeft: parseFloat($(this).css('left')) || 0,
+                    startTop: parseFloat($(this).css('top')) || 0
+                };
+            }).get()
+        };
+
+        $(document).on('mousemove.dragSelected', onDragMove);
+        $(document).on('mouseup.dragSelected', endDrag);
+    }
+
+    function onDragMove(ev) {
+        if (!dragStart || !dragInfo || resizing) return;
+        const dx = (ev.clientX - dragStart.x) / dragInfo.zoom;
+        const dy = (ev.clientY - dragStart.y) / dragInfo.zoom;
+
+        if (!isDragging) {
+            if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+            isDragging = true;
+            $('body').addClass('dragging-active');
+            hideActionBar();
+            const groupOutline = document.getElementById('group-selection-outline');
+            if (groupOutline) groupOutline.style.display = 'none';
+        }
+
+        dragInfo.elements.forEach(info => {
+            $(info.el).css({
+                left: info.startLeft + dx + 'px',
+                top: info.startTop + dy + 'px'
+            });
+        });
+
+        if ($('.selected').length > 1) {
+            updateGroupOutline();
+        }
+    }
+
+    function endDrag() {
+        $(document).off('.dragSelected');
+        if (isDragging) {
+            $('body').removeClass('dragging-active');
+            showActionBar();
+            if ($('.selected').length > 1) {
+                updateGroupOutline();
+            }
+        }
+        dragStart = null;
+        dragInfo = null;
+        isDragging = false;
+        $(document).trigger('selectionChanged');
+    }
 
     // Resizing cursor and start for individual or grouped elements
     $(document).on('mousemove', '.text-box.selected, .image-frame.selected, .rectangle-element.selected', function(e) {
@@ -1942,114 +2008,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // ... existing code ...
 
-    // --- jQuery UI Draggable for Group Movement ---
+    // --- Draggable Compatibility Stub ---
     function makeElementsDraggable(selector) {
-        $(selector).draggable({
-            handle: false, // Allow dragging from anywhere on the element
-            disabled: !editMode, // Initially disable if not in edit mode
-            start: function(event, ui) {
-                const $draggedOriginalElement = $(this); // The element the user initiated the drag on
-                // console.log("Drag Start on:", $draggedOriginalElement[0].id || $draggedOriginalElement.attr('class'), "UI Helper:", ui.helper[0].id || ui.helper.attr('class'));
-
-                $('body').addClass('dragging-active'); // Add class to body
-                
-                // Hide action bar during drag
-                hideActionBar();
-                
-                // Hide group outline during drag
-                const groupOutline = document.getElementById('group-selection-outline');
-                if (groupOutline) {
-                    groupOutline.style.display = 'none';
-                }
-
-                // New logic for initiating drag:
-                // If the item being dragged is NOT already selected, then it becomes the sole selection.
-                // If it IS already selected, the existing selection is preserved for the drag.
-                if (!$draggedOriginalElement.hasClass('selected')) {
-                    // console.log("Dragged element was not selected. It becomes the sole selection.");
-                    $('.selected').removeClass('selected');
-                    $draggedOriginalElement.addClass('selected');
-                    $(document).trigger('selectionChanged');
-                } else {
-                    // console.log("Dragged element was already selected. Preserving current selection for drag.");
-                    // Ensure it is at the top of the selection for focus, but don't change the set of selected items here.
-                    // If multiple items are selected, dragging one should not change the fact that they are all selected.
-                }
-
-                const zoom = getCurrentZoom();
-                const dragInfo = {
-                    zoom,
-                    elements: []
-                };
-
-                $('.selected').each(function() {
-                    const $el = $(this);
-                    const entry = {
-                        element: $el,
-                        startLeft: parseFloat($el.css('left')) || 0,
-                        startTop: parseFloat($el.css('top')) || 0
-                    };
-                    if ($el[0] === $draggedOriginalElement[0]) {
-                        dragInfo.elements.unshift(entry);
-                    } else {
-                        dragInfo.elements.push(entry);
-                    }
-                });
-
-                ui.helper.data('dragInfo', dragInfo);
-            },
-            drag: function(event, ui) {
-                const dragInfo = ui.helper.data('dragInfo');
-                if (!dragInfo) return;
-
-                const baseLeft = ui.position.left;
-                const baseTop = ui.position.top;
-                const dx = (baseLeft - dragInfo.elements[0].startLeft) / dragInfo.zoom;
-                const dy = (baseTop - dragInfo.elements[0].startTop) / dragInfo.zoom;
-
-                dragInfo.elements.forEach((info, index) => {
-                    const newLeft = info.startLeft + dx;
-                    const newTop = info.startTop + dy;
-                    info.element.css({
-                        left: newLeft + 'px',
-                        top: newTop + 'px'
-                    });
-                    if (index === 0) {
-                        ui.position.left = newLeft;
-                        ui.position.top = newTop;
-                    }
-                });
-
-                // Update group outline during drag for multiple selections
-                if ($('.selected').length > 1) {
-                    updateGroupOutline();
-                }
-            },
-            stop: function(event, ui) {
-                // console.log("Drag Stop. Final Helper CSS: Left:", ui.position.left, "Top:", ui.position.top);
-                $('body').removeClass('dragging-active'); // Remove class from body
-                
-                // Show action bar again after drag
-                showActionBar();
-                
-                // Show group outline again after drag if multiple elements selected
-                if ($('.selected').length > 1) {
-                    updateGroupOutline();
-                }
-                
-                // Clear stored data
-                ui.helper.removeData('dragInfo');
-                // Update properties panel or other UI if necessary
-                // Consider if a 'selectionMoved' event is needed
-                $(document).trigger('selectionChanged'); // Update UI for potentially new positions
-            }
-        });
+        // Dragging is now handled globally based on the .selected class.
+        // This function remains for backward compatibility when new elements are added.
     }
 
-    // Initial call for existing elements and call after new elements are created
-    // Ensure this is called AFTER jQuery and jQuery UI are loaded.
-    $(function() { // Ensures DOM is ready
-        makeElementsDraggable('.text-box, .image-frame, .rectangle-element');
+    // Initialize drag support for existing elements
+    $(function() {
+        // No setup needed, but kept for API consistency
     });
     // ... rest of your script ...
     // Remember to call makeElementsDraggable(newlyCreatedElement) in your element creation functions.
@@ -2209,12 +2176,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     top: newTop + 'px'
                 });
                 documentArea.appendChild(newElement);
-                makeElementsDraggable($(newElement)); // Make the new group draggable
+                makeElementsDraggable($(newElement)); // Keep API for compatibility
 
-                // Recursively make children draggable if they were part of the original group structure
-                // This assumes children are correctly cloned. jQuery UI draggable might need re-init for children if not.
+                // Recursively reinitialize drag support for any children
+                // Assume the cloned structure is correct; reapply handlers if needed
                 $(newElement).find('.text-box, .image-frame, .rectangle-element, .group-container').each(function() {
-                    makeElementsDraggable($(this)); 
+                    makeElementsDraggable($(this));
                 });
             }
 
@@ -2855,16 +2822,11 @@ document.addEventListener('DOMContentLoaded', () => {
                      });
                  }, 100);
                  break;
-             case 'Lock/Unlock':
-                 $selected.each(function() {
-                     $(this).toggleClass('locked');
-                     if ($(this).hasClass('locked')) {
-                         $(this).draggable('disable');
-                     } else {
-                         $(this).draggable('enable');
-                     }
-                 });
-                 break;
+            case 'Lock/Unlock':
+                $selected.each(function() {
+                    $(this).toggleClass('locked');
+                });
+                break;
              case 'Align Left':
                  alignElements($selected, 'left');
                  break;
