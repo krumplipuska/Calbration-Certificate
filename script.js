@@ -338,6 +338,27 @@ document.addEventListener('DOMContentLoaded', () => {
             height: el.offsetHeight,
             page: el.closest('.page-container')
         }));
+
+        // Calculate initial bounding box if multiple elements are selected
+        let groupBounds = null;
+        if (startRect.length > 1) {
+            const minLeft = Math.min(...startRect.map(r => r.left));
+            const minTop = Math.min(...startRect.map(r => r.top));
+            const maxRight = Math.max(...startRect.map(r => r.left + r.width));
+            const maxBottom = Math.max(...startRect.map(r => r.top + r.height));
+            groupBounds = {
+                left: minLeft,
+                top: minTop,
+                width: maxRight - minLeft,
+                height: maxBottom - minTop
+            };
+            startRect.forEach(info => {
+                info.relLeft = (info.left - groupBounds.left) / groupBounds.width;
+                info.relTop = (info.top - groupBounds.top) / groupBounds.height;
+                info.relWidth = info.width / groupBounds.width;
+                info.relHeight = info.height / groupBounds.height;
+            });
+        }
         startMouse = { x: e.clientX / zoom, y: e.clientY / zoom };
 
         // temporarily disable dragging while resizing
@@ -350,21 +371,48 @@ document.addEventListener('DOMContentLoaded', () => {
             let dx = mouseX - startMouse.x;
             let dy = mouseY - startMouse.y;
 
-            startRect.forEach(info => {
-                let newLeft = info.left;
-                let newTop = info.top;
-                let newWidth = info.width;
-                let newHeight = info.height;
+            let groupLeft = groupBounds ? groupBounds.left : 0;
+            let groupTop = groupBounds ? groupBounds.top : 0;
+            let groupWidth = groupBounds ? groupBounds.width : 0;
+            let groupHeight = groupBounds ? groupBounds.height : 0;
 
-                if (dir.includes('e')) newWidth = Math.max(20, info.width + dx);
-                if (dir.includes('s')) newHeight = Math.max(20, info.height + dy);
+            if (groupBounds) {
+                if (dir.includes('e')) groupWidth = Math.max(20, groupBounds.width + dx);
+                if (dir.includes('s')) groupHeight = Math.max(20, groupBounds.height + dy);
                 if (dir.includes('w')) {
-                    newWidth = Math.max(20, info.width - dx);
-                    newLeft = info.left + dx;
+                    groupWidth = Math.max(20, groupBounds.width - dx);
+                    groupLeft = groupBounds.left + dx;
                 }
                 if (dir.includes('n')) {
-                    newHeight = Math.max(20, info.height - dy);
-                    newTop = info.top + dy;
+                    groupHeight = Math.max(20, groupBounds.height - dy);
+                    groupTop = groupBounds.top + dy;
+                }
+            }
+
+            startRect.forEach(info => {
+                let newLeft, newTop, newWidth, newHeight;
+
+                if (groupBounds) {
+                    newLeft = groupLeft + info.relLeft * groupWidth;
+                    newTop = groupTop + info.relTop * groupHeight;
+                    newWidth = info.relWidth * groupWidth;
+                    newHeight = info.relHeight * groupHeight;
+                } else {
+                    newLeft = info.left;
+                    newTop = info.top;
+                    newWidth = info.width;
+                    newHeight = info.height;
+
+                    if (dir.includes('e')) newWidth = Math.max(20, info.width + dx);
+                    if (dir.includes('s')) newHeight = Math.max(20, info.height + dy);
+                    if (dir.includes('w')) {
+                        newWidth = Math.max(20, info.width - dx);
+                        newLeft = info.left + dx;
+                    }
+                    if (dir.includes('n')) {
+                        newHeight = Math.max(20, info.height - dy);
+                        newTop = info.top + dy;
+                    }
                 }
 
                 const documentArea = info.page ? info.page.querySelector('.document') : null;
