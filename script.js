@@ -2085,6 +2085,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (elementType === 'group') {
                 // Deep clone the group container
                 newElement = $original.clone(false)[0]; // false to not copy event handlers initially
+                // Remove selection classes from group and its children
+                $(newElement).removeClass('selected').find('.selected').removeClass('selected');
                 $(newElement).css({
                     left: newLeft + 'px',
                     top: newTop + 'px'
@@ -2106,9 +2108,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (newElements.length > 0) {
-            $('.selected').removeClass('selected'); // Deselect originals
-            $(newElements).addClass('selected');    // Select new copies
-            $(document).trigger('selectionChanged');
+            // Keep original selection, don't auto-select copied elements
+            console.log('Copied', newElements.length, 'elements');
         }
     }
 
@@ -2545,10 +2546,12 @@ document.addEventListener('DOMContentLoaded', () => {
                      newElement = copyGenericElement($original, documentArea, newLeft, newTop);
                  }
 
-                 if (newElement) {
-                     newElements.push(newElement);
-                     offsetIncrement += 5;
-                 }
+                if (newElement) {
+                    // Ensure copied elements don't retain selection styling
+                    $(newElement).removeClass('selected').find('.selected').removeClass('selected');
+                    newElements.push(newElement);
+                    offsetIncrement += 5;
+                }
              } catch (error) {
                  console.error('Error copying element:', error);
              }
@@ -2650,18 +2653,21 @@ document.addEventListener('DOMContentLoaded', () => {
      /**
       * Helper function to copy generic/unknown elements
       */
-     function copyGenericElement($original, documentArea, left, top) {
-         const newElement = $original.clone(true)[0];
-         
-         $(newElement).css({ left: left + 'px', top: top + 'px' });
+    function copyGenericElement($original, documentArea, left, top) {
+        const newElement = $original.clone(true)[0];
+
+        $(newElement).css({ left: left + 'px', top: top + 'px' });
          
          // Generate new ID if it has one
          if (newElement.id) {
              newElement.id = newElement.id + '-copy-' + Date.now();
          }
          
-         documentArea.appendChild(newElement);
-         makeElementsDraggable($(newElement));
+        // Remove any selection classes from the cloned structure
+        $(newElement).removeClass('selected').find('.selected').removeClass('selected');
+
+        documentArea.appendChild(newElement);
+        makeElementsDraggable($(newElement));
 
          return newElement;
      }
