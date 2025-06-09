@@ -298,20 +298,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
     
 
-    // Resize logic
-    function startResize(e, box, dir) {
+    // Helpers for universal resizing
+    function getResizeDir(el, event, margin = 8) {
+        const rect = el.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        let dir = '';
+        if (y < margin) dir += 'n';
+        else if (y > rect.height - margin) dir += 's';
+        if (x < margin) dir += 'w';
+        else if (x > rect.width - margin) dir += 'e';
+        return dir;
+    }
+
+    function cursorForDir(dir) {
+        if (dir === 'n' || dir === 's') return 'ns-resize';
+        if (dir === 'e' || dir === 'w') return 'ew-resize';
+        if (dir === 'ne' || dir === 'sw') return 'nesw-resize';
+        if (dir === 'nw' || dir === 'se') return 'nwse-resize';
+        return '';
+    }
+
+    // Universal resize logic supporting multiple selected elements
+    function startResize(e, elements, dir) {
         e.preventDefault();
         const zoom = getCurrentZoom();
 
+        if (!Array.isArray(elements)) {
+            elements = [elements];
+        }
+
         resizing = true;
         resizeDir = dir;
-        startRect = {
-            left: box.offsetLeft,
-            top: box.offsetTop,
-            width: box.offsetWidth,
-            height: box.offsetHeight
-        };
+        startRect = elements.map(el => ({
+            element: el,
+            left: el.offsetLeft,
+            top: el.offsetTop,
+            width: el.offsetWidth,
+            height: el.offsetHeight,
+            page: el.closest('.page-container')
+        }));
         startMouse = { x: e.clientX / zoom, y: e.clientY / zoom };
+
+        // temporarily disable dragging while resizing
+        elements.forEach(el => { $(el).draggable('disable'); });
 
         function onMove(ev) {
             const mouseX = ev.clientX / zoom;
@@ -320,63 +350,59 @@ document.addEventListener('DOMContentLoaded', () => {
             let dx = mouseX - startMouse.x;
             let dy = mouseY - startMouse.y;
 
-            let newLeft = startRect.left;
-            let newTop = startRect.top;
-            let newWidth = startRect.width;
-            let newHeight = startRect.height;
+            startRect.forEach(info => {
+                let newLeft = info.left;
+                let newTop = info.top;
+                let newWidth = info.width;
+                let newHeight = info.height;
 
-            if (dir.includes('e')) newWidth = Math.max(80, startRect.width + dx);
-            const minHeight = 18;
-            if (dir.includes('s')) newHeight = Math.max(minHeight, startRect.height + dy);
-            if (dir.includes('w')) {
-                newWidth = Math.max(80, startRect.width - dx);
-                newLeft = startRect.left + dx;
-            }
-            if (dir.includes('n')) {
-                newHeight = Math.max(minHeight, startRect.height - dy);
-                newTop = startRect.top + dy;
-            }
-
-            const currentPageContainer = box.closest('.page-container');
-            if (!currentPageContainer) return;
-            const documentArea = currentPageContainer.querySelector('.document');
-            if (!documentArea) return;
-
-            const docRect = documentArea.getBoundingClientRect();
-            
-            newLeft = Math.max(0, Math.min(newLeft, (docRect.width / zoom) - newWidth));
-            newTop = Math.max(0, Math.min(newTop, (docRect.height / zoom) - newHeight));
-            
-            newWidth = Math.min(newWidth, (docRect.width/zoom) - newLeft);
-            newHeight = Math.min(newHeight, (docRect.height/zoom) - newTop);
-
-            box.style.left = newLeft + 'px';
-            box.style.top = newTop + 'px';
-            box.style.width = newWidth + 'px';
-            box.style.height = newHeight + 'px';
-
-            if ($(box).hasClass('selected')) {
-                updateDetailsPanelPosition(box);
-                updateDetailsPanelDimensions(box);
-                // Update group outline if multiple elements are selected
-                if ($('.selected').length > 1) {
-                    updateGroupOutline();
+                if (dir.includes('e')) newWidth = Math.max(20, info.width + dx);
+                if (dir.includes('s')) newHeight = Math.max(20, info.height + dy);
+                if (dir.includes('w')) {
+                    newWidth = Math.max(20, info.width - dx);
+                    newLeft = info.left + dx;
                 }
+                if (dir.includes('n')) {
+                    newHeight = Math.max(20, info.height - dy);
+                    newTop = info.top + dy;
+                }
+
+                const documentArea = info.page ? info.page.querySelector('.document') : null;
+                if (!documentArea) return;
+                const docRect = documentArea.getBoundingClientRect();
+
+                newLeft = Math.max(0, Math.min(newLeft, (docRect.width / zoom) - newWidth));
+                newTop = Math.max(0, Math.min(newTop, (docRect.height / zoom) - newHeight));
+
+                newWidth = Math.min(newWidth, (docRect.width/zoom) - newLeft);
+                newHeight = Math.min(newHeight, (docRect.height/zoom) - newTop);
+
+                info.element.style.left = newLeft + 'px';
+                info.element.style.top = newTop + 'px';
+                info.element.style.width = newWidth + 'px';
+                info.element.style.height = newHeight + 'px';
+
+                if ($(info.element).hasClass('selected')) {
+                    updateDetailsPanelPosition(info.element);
+                    updateDetailsPanelDimensions(info.element);
+                }
+            });
+
+            if ($('.selected').length > 1) {
+                updateGroupOutline();
             }
         }
+
         function onUp() {
             resizing = false;
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
-            if ($(box).hasClass('selected')) {
-                 updateDetailsPanelPosition(box);
-                 updateDetailsPanelDimensions(box);
-                 // Update group outline if multiple elements are selected
-                 if ($('.selected').length > 1) {
-                     updateGroupOutline();
-                 }
+            elements.forEach(el => { $(el).draggable('enable'); });
+            if ($('.selected').length > 1) {
+                updateGroupOutline();
             }
         }
+
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
     }
@@ -1612,9 +1638,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearSelection();
             }
 
-            lassoStart = null;
+        lassoStart = null;
         });
         e.preventDefault();
+    });
+
+    // Resizing cursor and start for individual or grouped elements
+    $(document).on('mousemove', '.text-box.selected, .image-frame.selected, .rectangle-element.selected', function(e) {
+        if (!editMode || resizing) return;
+        const dir = getResizeDir(this, e);
+        this.style.cursor = dir ? cursorForDir(dir) : 'move';
+    });
+
+    $(document).on('mousedown', '.text-box.selected, .image-frame.selected, .rectangle-element.selected', function(e) {
+        if (!editMode) return;
+        const dir = getResizeDir(this, e);
+        if (dir) {
+            startResize(e, $('.selected').toArray(), dir);
+            e.stopPropagation();
+            e.preventDefault();
+        }
+    });
+
+    $(document).on('mousemove', '#group-selection-outline', function(e) {
+        if (!editMode || resizing) return;
+        const dir = getResizeDir(this, e);
+        this.style.cursor = dir ? cursorForDir(dir) : 'default';
+    });
+
+    $(document).on('mousedown', '#group-selection-outline', function(e) {
+        if (!editMode) return;
+        const dir = getResizeDir(this, e);
+        if (dir) {
+            startResize(e, $('.selected').toArray(), dir);
+            e.stopPropagation();
+            e.preventDefault();
+        }
     });
 
     // Multi-select toolbar logic
