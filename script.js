@@ -2229,10 +2229,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else if (hasGroupedElements) {
                 groupBtn.style.display = 'flex';
-                groupBtn.innerHTML = '<i class="fas fa-object-ungroup"></i>';
-                groupBtn.title = 'Ungroup';
-                groupBtn.setAttribute('data-action', 'ungroup');
-                console.log('Showing UNGROUP button');
+                if (allSameGroup) {
+                    groupBtn.innerHTML = '<i class="fas fa-object-ungroup"></i>';
+                    groupBtn.title = 'Ungroup';
+                    groupBtn.setAttribute('data-action', 'ungroup');
+                    console.log('Showing UNGROUP button');
+                } else {
+                    groupBtn.innerHTML = '<i class="fas fa-object-group"></i>';
+                    groupBtn.title = 'Group';
+                    groupBtn.setAttribute('data-action', 'group');
+                    console.log('Showing GROUP button');
+                }
             } else {
                 groupBtn.style.display = 'none';
                 console.log('Hiding group button');
@@ -2446,8 +2453,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Assign group-id to all selected elements
         $selected.each(function() {
             $(this).attr('data-group-id', groupId);
-            // Add visual indicator that element is grouped
-            $(this).addClass('grouped-element');
         });
         
         console.log('Created group', groupId, 'with', $selected.length, 'elements');
@@ -2465,7 +2470,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         $selected.each(function() {
             $(this).removeAttr('data-group-id');
-            $(this).removeClass('grouped-element');
         });
         
         console.log('Ungrouped', $selected.length, 'elements');
@@ -2691,12 +2695,11 @@ document.addEventListener('DOMContentLoaded', () => {
          });
          
          // Copy group-id if it exists (but generate new group for copied elements)
-         const originalGroupId = $original.attr('data-group-id');
-         if (originalGroupId) {
-             const newGroupId = 'group-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
-             $new.attr('data-group-id', newGroupId);
-             $new.addClass('grouped-element');
-         }
+        const originalGroupId = $original.attr('data-group-id');
+        if (originalGroupId) {
+            const newGroupId = 'group-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
+            $new.attr('data-group-id', newGroupId);
+        }
      }
 
      /**
