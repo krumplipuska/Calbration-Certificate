@@ -2176,12 +2176,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     top: newTop + 'px'
                 });
                 documentArea.appendChild(newElement);
-                makeElementsDraggable($(newElement)); // Make the new group draggable
+                makeElementsDraggable($(newElement)); // Keep API for compatibility
 
-                // Recursively make children draggable if they were part of the original group structure
-                // This assumes children are correctly cloned. jQuery UI draggable might need re-init for children if not.
+                // Recursively reinitialize drag support for any children
+                // Assume the cloned structure is correct; reapply handlers if needed
                 $(newElement).find('.text-box, .image-frame, .rectangle-element, .group-container').each(function() {
-                    makeElementsDraggable($(this)); 
+                    makeElementsDraggable($(this));
                 });
             }
 
