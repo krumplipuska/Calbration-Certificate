@@ -95,7 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (newTextBox && editMode) {
             $('.selected').removeClass('selected');
             $(newTextBox).addClass('selected');
-            $(document).trigger('selectionChanged');
+            // Use setTimeout to ensure element is fully rendered before triggering selection
+            setTimeout(() => $(document).trigger('selectionChanged'), 100);
         }
     });
 
@@ -110,7 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (newImageFrame && editMode) {
             $('.selected').removeClass('selected');
             $(newImageFrame).addClass('selected');
-            $(document).trigger('selectionChanged');
+            // Use setTimeout to ensure element is fully rendered before triggering selection
+            setTimeout(() => $(document).trigger('selectionChanged'), 100);
         }
     });
 
@@ -124,7 +126,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (newRectangle && editMode) {
             $('.selected').removeClass('selected');
             $(newRectangle).addClass('selected');
-            $(document).trigger('selectionChanged');
+            // Use setTimeout to ensure element is fully rendered before triggering selection
+            setTimeout(() => $(document).trigger('selectionChanged'), 100);
         }
     });
 
@@ -381,6 +384,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if ($(box).hasClass('selected')) {
                 updateDetailsPanelPosition(box);
                 updateDetailsPanelDimensions(box);
+                // Update group outline if multiple elements are selected
+                if ($('.selected').length > 1) {
+                    updateGroupOutline();
+                }
             }
         }
         function onUp() {
@@ -390,6 +397,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if ($(box).hasClass('selected')) {
                  updateDetailsPanelPosition(box);
                  updateDetailsPanelDimensions(box);
+                 // Update group outline if multiple elements are selected
+                 if ($('.selected').length > 1) {
+                     updateGroupOutline();
+                 }
             }
         }
         document.addEventListener('mousemove', onMove);
@@ -726,7 +737,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setEditMode(on) {
         editMode = on;
         document.body.classList.toggle('edit-mode-active', editMode);
-        const allElements = '.text-box, .image-frame, .rectangle-element, .group-container';
+        const allElements = '.text-box, .image-frame, .rectangle-element';
 
         if (editMode) {
             updateCurrentPageBasedOnCenter(); // Set current page when entering edit mode
@@ -993,18 +1004,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const zoomPercentage = document.getElementById('zoom-percentage');
     const documentPages = document.querySelector('.document-pages');
 
+    // Zoom debounce timer for action bar
+    let zoomTimeout = null;
+
     if (zoomSlider && zoomPercentage && documentPages) {
         zoomSlider.addEventListener('input', () => {
             const zoom = zoomSlider.value;
             zoomPercentage.textContent = `${zoom}%`;
             documentPages.style.transform = `scale(${zoom / 100})`;
             documentPages.style.transformOrigin = 'top center';
-            // Inverse scale for floating action buttons
-            const scale = 100 / zoom;
-            document.querySelectorAll('.no-zoom-scale').forEach(el => {
-                el.style.transform = `scale(${scale})`;
-                el.style.transformOrigin = 'top center';
-            });
+
+            // Hide action bar during zoom
+            hideActionBar();
+
+            // Clear existing timeout
+            if (zoomTimeout) {
+                clearTimeout(zoomTimeout);
+            }
+
+            // Show action bar after zoom stops (debounced)
+            zoomTimeout = setTimeout(() => {
+                if ($('.selected').length > 0 && editMode) {
+                    showActionBar();
+                }
+            }, 150); // 150ms delay after zoom stops
         });
     }
 
@@ -1021,12 +1044,21 @@ document.addEventListener('DOMContentLoaded', () => {
             zoomPercentage.textContent = `${zoom}%`;
             documentPages.style.transform = `scale(${zoom / 100})`;
             documentPages.style.transformOrigin = 'top center';
-            // Inverse scale for floating action buttons
-            const scale = 100 / zoom;
-            document.querySelectorAll('.no-zoom-scale').forEach(el => {
-                el.style.transform = `scale(${scale})`;
-                el.style.transformOrigin = 'top center';
-            });
+
+            // Hide action bar during wheel zoom
+            hideActionBar();
+
+            // Clear existing timeout
+            if (zoomTimeout) {
+                clearTimeout(zoomTimeout);
+            }
+
+            // Show action bar after zoom stops (debounced)
+            zoomTimeout = setTimeout(() => {
+                if ($('.selected').length > 0 && editMode) {
+                    showActionBar();
+                }
+            }, 150); // 150ms delay after zoom stops
         }
     }, { passive: false });
 
@@ -1517,8 +1549,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let dragStart = null;
     let dragPositions = null;
 
-    // Selection by click
-    $(document).on('mousedown', '.text-box, .image-frame, .rectangle-element, .group-container', function(e) {
+    // Selection by click with group support
+    $(document).on('mousedown', '.text-box, .image-frame, .rectangle-element', function(e) {
         if (!editMode) return;
         // Do not interfere if clicking on handles, buttons, or an element already being dragged by UI, or if the target is contenteditable.
         if ($(e.target).closest('.resize-handle, .floating-action-btn, .ui-draggable-dragging').length || e.target.isContentEditable) {
@@ -1526,56 +1558,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const $this = $(this);
-        let selectionActuallyChanged = false;
-
-        if (e.shiftKey || e.ctrlKey || e.metaKey) {
-            // Multi-select: Toggle selection of the clicked element
-            const wasSelected = $this.hasClass('selected');
-            $this.toggleClass('selected');
-            if ($this.hasClass('selected') !== wasSelected) {
-                selectionActuallyChanged = true;
-            }
-            // console.log("Mousedown multi-select on:", $this[0].id || $this.attr('class'), "Selected state:", $this.hasClass('selected'));
-            // e.stopPropagation(); // Usually good to prevent document mousedown if on an element.
-                           // Test if this is needed or if draggable handles it.
-        } else {
-            // Single select click:
-            if (!$this.hasClass('selected')) {
-                // If clicked element is NOT selected, deselect all others and select this one.
-                // console.log("Mousedown single-select on unselected element:", $this[0].id || $this.attr('class'));
-                // Check if other elements were selected before, to confirm change
-                if ($('.selected').not($this).length > 0) {
-                    selectionActuallyChanged = true;
-                }
-                $('.selected').removeClass('selected'); // Deselect others
-                $this.addClass('selected');
-                if (!selectionActuallyChanged && !$this.data('previouslySelected')) { // if it wasn't truly a change until now
-                     selectionActuallyChanged = true; // Make sure to capture this if it's a new solo selection
-                }
-                 $this.data('previouslySelected', true); // Mark it as selected in this event cycle
+        const isMultiSelect = e.shiftKey || e.ctrlKey || e.metaKey;
+        
+        // Store current selection state for comparison
+        const currentSelected = $('.selected').get();
+        
+        if (isMultiSelect) {
+            // Multi-select: Toggle selection of the clicked element and its group
+            const groupMembers = getGroupMembers(this);
+            const allGroupSelected = groupMembers.every(member => $(member).hasClass('selected'));
+            
+            if (allGroupSelected) {
+                // If all group members are selected, deselect them
+                $(groupMembers).removeClass('selected');
             } else {
-                // If clicked element IS ALREADY selected (e.g., part of a lasso group):
-                // Do nothing to the selection state here within the mousedown itself.
-                // jQuery UI draggable's `start` will see it's selected and work with the existing group.
-                // This allows dragging one of multiple selected items without deselecting others.
-                // console.log("Mousedown on already selected element (potential drag start):", $this[0].id || $this.attr('class'));
-
-                // If there are other elements selected, and this click is on one of them,
-                // we don't change selection. If this is the *only* selected element, no change either.
-                // The key is *not* to deselect others if $this is already selected.
+                // Otherwise, select all group members
+                $(groupMembers).addClass('selected');
             }
+        } else {
+            // Single select: Check if element is part of a group and select accordingly
+            const groupMembers = getGroupMembers(this);
+            const anyGroupSelected = groupMembers.some(member => $(member).hasClass('selected'));
+            
+            if (!anyGroupSelected) {
+                // No group members selected, select the group/element
+                $('.selected').removeClass('selected');
+                $(groupMembers).addClass('selected');
+            }
+            // If group is already selected, don't change selection (allows dragging)
+        }
+        
+        // Check if selection actually changed
+        const newSelected = $('.selected').get();
+        const selectionChanged = currentSelected.length !== newSelected.length || 
+                               !currentSelected.every(el => newSelected.includes(el));
+        
+        if (selectionChanged) {
+            $(document).trigger('selectionChanged');
         }
         
         // Clear previouslySelected flag for elements not currently part of the interaction
-        $('.text-box, .image-frame, .rectangle-element, .group-container').not($this).removeData('previouslySelected');
-
-
-        if (selectionActuallyChanged) {
-            // console.log("Selection state changed, triggering selectionChanged event.");
-            $(document).trigger('selectionChanged');
-        }
+        $('.text-box, .image-frame, .rectangle-element').not($this).removeData('previouslySelected');
+        
         // DO NOT call e.preventDefault() here. Let jQuery UI Draggable decide.
-        // If jQuery UI draggable starts, it will call e.preventDefault().
     });
 
     // --- jQuery Lasso (Marquee) Selection ---
@@ -1618,16 +1643,26 @@ document.addEventListener('DOMContentLoaded', () => {
             let y2 = Math.max(lassoStart.y, ev.pageY);
             let isMulti = ev.shiftKey || ev.ctrlKey || ev.metaKey;
             if (!isMulti) $('.selected').removeClass('selected');
-            $('.text-box, .image-frame, .rectangle-element, .group-container').each(function() {
+            
+            let selectionChanged = false;
+            $('.text-box, .image-frame, .rectangle-element').each(function() {
                 let $el = $(this);
                 let offset = $el.offset();
                 let w = $el.outerWidth();
                 let h = $el.outerHeight();
                 if (offset.left + w > x1 && offset.left < x2 && offset.top + h > y1 && offset.top < y2) {
+                    if (!$el.hasClass('selected')) {
+                        selectionChanged = true;
+                    }
                     $el.addClass('selected');
-                    updateMultiSelectToolbarAndOutline();
                 }
             });
+            
+            // Always trigger selectionChanged after lasso to ensure action bar appears
+            if (selectionChanged || $('.selected').length > 0) {
+                $(document).trigger('selectionChanged');
+            }
+            
             lassoStart = null;
         });
         e.preventDefault();
@@ -1852,6 +1887,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 // console.log("Drag Start on:", $draggedOriginalElement[0].id || $draggedOriginalElement.attr('class'), "UI Helper:", ui.helper[0].id || ui.helper.attr('class'));
 
                 $('body').addClass('dragging-active'); // Add class to body
+                
+                // Hide action bar during drag
+                hideActionBar();
+                
+                // Hide group outline during drag
+                const groupOutline = document.getElementById('group-selection-outline');
+                if (groupOutline) {
+                    groupOutline.style.display = 'none';
+                }
 
                 // New logic for initiating drag:
                 // If the item being dragged is NOT already selected, then it becomes the sole selection.
@@ -1909,14 +1953,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (selectedData && selectedData.length === 0) {
                     // This means other items were selected but calculation resulted in empty data - check start logic
                 }
-                // After moving elements, if multiple are selected, update the group UI position
+                
+                // Update group outline during drag for multiple selections
                 if ($('.selected').length > 1) {
-                    updateGroupOutlineAndToolbarPosition();
+                    updateGroupOutline();
                 }
             },
             stop: function(event, ui) {
                 // console.log("Drag Stop. Final Helper CSS: Left:", ui.position.left, "Top:", ui.position.top);
                 $('body').removeClass('dragging-active'); // Remove class from body
+                
+                // Show action bar again after drag
+                showActionBar();
+                
+                // Show group outline again after drag if multiple elements selected
+                if ($('.selected').length > 1) {
+                    updateGroupOutline();
+                }
+                
                 // Clear stored data
                 ui.helper.removeData('selectedElementsData');
                 // Update properties panel or other UI if necessary
@@ -1929,7 +1983,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial call for existing elements and call after new elements are created
     // Ensure this is called AFTER jQuery and jQuery UI are loaded.
     $(function() { // Ensures DOM is ready
-        makeElementsDraggable('.text-box, .image-frame, .rectangle-element, .group-container');
+        makeElementsDraggable('.text-box, .image-frame, .rectangle-element');
     });
     // ... rest of your script ...
     // Remember to call makeElementsDraggable(newlyCreatedElement) in your element creation functions.
@@ -2162,42 +2216,11 @@ document.addEventListener('DOMContentLoaded', () => {
         makeTextElementEditable(this);
     });
 
-    // Add logic for global floating action bar
-    const floatingActionBar = document.getElementById('floating-action-bar');
 
-    function updateFloatingActionBar() {
-        const $selected = $('.selected');
-        if ($selected.length === 0 || !editMode) {
-            floatingActionBar.style.display = 'none';
-            return;
-        }
-        // Compute bounding box of all selected elements
-        let minLeft = Infinity, minTop = Infinity, maxRight = -Infinity;
-        $selected.each(function() {
-            const rect = this.getBoundingClientRect();
-            minLeft = Math.min(minLeft, rect.left);
-            minTop = Math.min(minTop, rect.top);
-            maxRight = Math.max(maxRight, rect.right);
-        });
-        // Position the bar centered above the selection
-        const barWidth = floatingActionBar.offsetWidth;
-        const left = minLeft + (maxRight - minLeft) / 2 - barWidth / 2 + window.scrollX;
-        const top = minTop - 48 + window.scrollY; // 48px above
-        floatingActionBar.style.left = left + 'px';
-        floatingActionBar.style.top = top + 'px';
-        floatingActionBar.style.display = 'block';
-        console.log('Floating action bar shown at', left, top, 'bar width', barWidth);
-    }
-
-    $(document).on('selectionChanged', function() {
-        setTimeout(updateFloatingActionBar, 0);
-    });
-    window.addEventListener('resize', updateFloatingActionBar);
-    if (zoomSlider) zoomSlider.addEventListener('input', updateFloatingActionBar);
     // Hide on deselect
     $(document).on('mousedown', function(e) {
         if (!editMode) return;
-        if ($(e.target).closest('.text-box, .image-frame, .rectangle-element, .group-container, .text-toolbar, .element-details-panel, #floating-action-bar').length) {
+        if ($(e.target).closest('.text-box, .image-frame, .rectangle-element, .text-toolbar, .element-details-panel, #universal-action-bar, .action-btn').length) {
             return;
         }
         if ($('.selected').length > 0) {
@@ -2205,4 +2228,623 @@ document.addEventListener('DOMContentLoaded', () => {
             $(document).trigger('selectionChanged');
         }
     });
-});
+
+    // Universal Action Bar - Clean, reusable implementation
+    const actionBar = document.getElementById('universal-action-bar');
+    console.log('Action bar element:', actionBar);
+    if (actionBar) {
+        console.log('Action bar buttons:', actionBar.querySelectorAll('.action-btn'));
+    }
+
+    /**
+     * Shows the action bar above the selected elements
+     */
+    function showActionBar() {
+        const $selected = $('.selected');
+        if ($selected.length === 0 || !editMode) {
+            hideActionBar();
+            return;
+        }
+        
+        console.log('showActionBar called with', $selected.length, 'selected elements');
+
+        // Show/hide and update group button based on selection
+        const groupBtn = actionBar ? actionBar.querySelector('[data-action="group"]') : null;
+        if (groupBtn) {
+            const hasGroupedElements = $selected.toArray().some(el => $(el).attr('data-group-id'));
+            const allSameGroup = $selected.length > 1 && 
+                               $selected.toArray().every(el => $(el).attr('data-group-id') === $($selected[0]).attr('data-group-id'));
+            
+            console.log('Action bar update:', {
+                selectedCount: $selected.length,
+                hasGroupedElements,
+                allSameGroup,
+                firstElementGroupId: $selected.length > 0 ? $($selected[0]).attr('data-group-id') : null
+            });
+            
+            if ($selected.length > 1 && !allSameGroup) {
+                // Multiple elements not in same group - show "Group" button
+                groupBtn.style.display = 'flex';
+                groupBtn.innerHTML = '<i class="fas fa-object-group"></i>';
+                groupBtn.title = 'Group';
+                groupBtn.setAttribute('data-action', 'group');
+                console.log('Showing GROUP button');
+            } else if (hasGroupedElements) {
+                // Has grouped elements - show "Ungroup" button
+                groupBtn.style.display = 'flex';
+                groupBtn.innerHTML = '<i class="fas fa-object-ungroup"></i>';
+                groupBtn.title = 'Ungroup';
+                groupBtn.setAttribute('data-action', 'ungroup');
+                console.log('Showing UNGROUP button');
+            } else {
+                // Single element or no groups - hide button
+                groupBtn.style.display = 'none';
+                console.log('Hiding group button');
+            }
+        } else {
+            console.warn('Group button not found in action bar');
+        }
+
+        // Position the bar
+        positionActionBar($selected);
+        
+        // Show the bar
+        actionBar.classList.remove('action-bar-hidden');
+    }
+
+    /**
+     * Hides the action bar
+     */
+    function hideActionBar() {
+        actionBar.classList.add('action-bar-hidden');
+    }
+
+    /**
+     * Positions the action bar above the selected elements
+     */
+    function positionActionBar($selected) {
+        if ($selected.length === 0) return;
+
+        // Use requestAnimationFrame to ensure elements are fully rendered
+        requestAnimationFrame(() => {
+            try {
+                // Calculate bounding box of all selected elements
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                let validElements = 0;
+                
+                $selected.each(function() {
+                    const rect = this.getBoundingClientRect();
+                    // Only include elements that are actually visible/rendered
+                    if (rect.width > 0 && rect.height > 0) {
+                        minX = Math.min(minX, rect.left);
+                        minY = Math.min(minY, rect.top);
+                        maxX = Math.max(maxX, rect.right);
+                        maxY = Math.max(maxY, rect.bottom);
+                        validElements++;
+                    }
+                });
+
+                // Only position if we have valid elements
+                if (validElements === 0) {
+                    console.warn('No valid elements found for action bar positioning');
+                    return;
+                }
+
+                // Position bar centered above the selection
+                const barRect = actionBar.getBoundingClientRect();
+                const centerX = (minX + maxX) / 2;
+                const topY = minY - barRect.height - 12; // 12px gap above selection
+
+                actionBar.style.left = (centerX - barRect.width / 2 + window.scrollX) + 'px';
+                actionBar.style.top = Math.max(0, topY + window.scrollY) + 'px'; // Ensure it doesn't go above viewport
+            } catch (error) {
+                console.warn('Error positioning action bar:', error);
+            }
+        });
+    }
+
+    // Event handlers for action bar
+    $(document).on('click', '.action-btn', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        const action = this.getAttribute('data-action');
+        
+        switch(action) {
+            case 'group':
+                groupSelectedElements();
+                break;
+            case 'ungroup':
+                ungroupSelectedElements();
+                break;
+            case 'copy':
+                copySelectedElements();
+                break;
+            case 'delete':
+                deleteSelectedElements();
+                break;
+            case 'more':
+                showMoreActionsMenu(this);
+                break;
+        }
+    });
+
+    // Prevent action bar from triggering deselection
+    $(document).on('mousedown', '#universal-action-bar', function(e) {
+        e.stopPropagation();
+    });
+
+    // Update action bar and group outline on selection changes
+    $(document).on('selectionChanged', function() {
+        setTimeout(() => {
+            showActionBar();
+            updateGroupOutline(); // Show group outline for multiple selections
+        }, 50); // Increased delay to ensure elements are fully rendered
+    });
+
+    // Update position on scroll and resize
+    window.addEventListener('scroll', () => {
+        const $selected = $('.selected');
+        if (!actionBar.classList.contains('action-bar-hidden') && $selected.length > 0) {
+            positionActionBar($selected);
+        }
+        // Update group outline on scroll
+        if ($selected.length > 1 && editMode) {
+            updateGroupOutline();
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        const $selected = $('.selected');
+        if (!actionBar.classList.contains('action-bar-hidden') && $selected.length > 0) {
+            positionActionBar($selected);
+        }
+        // Update group outline on resize
+        if ($selected.length > 1 && editMode) {
+            updateGroupOutline();
+        }
+    });
+
+    /**
+     * Shows/hides and positions the group outline for multiple selected elements
+     */
+    function updateGroupOutline() {
+        const $selected = $('.selected');
+        const groupOutline = document.getElementById('group-selection-outline');
+        
+        if (!groupOutline) {
+            console.warn('Group selection outline element not found');
+            return;
+        }
+
+        if ($selected.length <= 1 || !editMode) {
+            groupOutline.style.display = 'none';
+            return;
+        }
+
+        // Find the document area that contains the selected elements
+        const activeDocument = $selected.first().closest('.document')[0];
+        if (!activeDocument) {
+            groupOutline.style.display = 'none';
+            return;
+        }
+
+        // Ensure the outline is a child of the active document
+        if (groupOutline.parentElement !== activeDocument) {
+            activeDocument.appendChild(groupOutline);
+        }
+
+        // Calculate bounding box of all selected elements
+        const zoom = getCurrentZoom();
+        const docRect = activeDocument.getBoundingClientRect();
+        
+        let minLeft = Infinity, minTop = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
+        
+        $selected.each(function() {
+            const rect = this.getBoundingClientRect();
+            // Convert viewport coordinates to document-relative coordinates
+            const relativeLeft = (rect.left - docRect.left) / zoom;
+            const relativeTop = (rect.top - docRect.top) / zoom;
+            const relativeRight = (rect.right - docRect.left) / zoom;
+            const relativeBottom = (rect.bottom - docRect.top) / zoom;
+            
+            minLeft = Math.min(minLeft, relativeLeft);
+            minTop = Math.min(minTop, relativeTop);
+            maxRight = Math.max(maxRight, relativeRight);
+            maxBottom = Math.max(maxBottom, relativeBottom);
+        });
+
+        // Add some padding around the selection
+        const padding = 8;
+        minLeft -= padding;
+        minTop -= padding;
+        maxRight += padding;
+        maxBottom += padding;
+
+        // Position and size the outline
+        groupOutline.style.left = minLeft + 'px';
+        groupOutline.style.top = minTop + 'px';
+        groupOutline.style.width = (maxRight - minLeft) + 'px';
+        groupOutline.style.height = (maxBottom - minTop) + 'px';
+        groupOutline.style.display = 'block';
+    }
+
+    // Universal Action Bar - Clean, reusable implementation
+
+        /**
+     * Groups multiple selected elements by assigning them the same group-id
+     */
+    function groupSelectedElements() {
+        if (!editMode) return;
+        const $selected = $('.selected');
+        
+        if ($selected.length < 2) {
+            console.warn('Need at least 2 elements to create a group');
+            return;
+        }
+
+        // Generate unique group ID
+        const groupId = 'group-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
+        
+        // Assign group-id to all selected elements
+        $selected.each(function() {
+            $(this).attr('data-group-id', groupId);
+            // Add visual indicator that element is grouped
+            $(this).addClass('grouped-element');
+        });
+        
+        console.log('Created group', groupId, 'with', $selected.length, 'elements');
+        
+        // Trigger selection change to update UI
+        $(document).trigger('selectionChanged');
+    }
+
+    /**
+     * Ungroups elements by removing their group-id
+     */
+    function ungroupSelectedElements() {
+        if (!editMode) return;
+        const $selected = $('.selected');
+        
+        $selected.each(function() {
+            $(this).removeAttr('data-group-id');
+            $(this).removeClass('grouped-element');
+        });
+        
+        console.log('Ungrouped', $selected.length, 'elements');
+        $(document).trigger('selectionChanged');
+    }
+
+    /**
+     * Gets all elements that belong to the same group as the given element
+     */
+    function getGroupMembers(element) {
+        const groupId = $(element).attr('data-group-id');
+        if (!groupId) {
+            return [element]; // Return just the element if it's not grouped
+        }
+        
+        // Find all elements with the same group-id in the same document
+        const documentArea = $(element).closest('.document')[0];
+        if (!documentArea) return [element];
+        
+        return $(documentArea).find(`[data-group-id="${groupId}"]`).get();
+    }
+
+    /**
+     * Selects all members of a group when one member is selected
+     */
+    function selectGroupMembers(clickedElement, isMultiSelect = false) {
+        const groupMembers = getGroupMembers(clickedElement);
+        
+        if (groupMembers.length === 1) {
+            // Not grouped, handle as individual selection
+            if (!isMultiSelect) {
+                $('.selected').removeClass('selected');
+            }
+            $(clickedElement).addClass('selected');
+        } else {
+            // Is grouped, select all group members
+            if (!isMultiSelect) {
+                $('.selected').removeClass('selected');
+            }
+            $(groupMembers).addClass('selected');
+        }
+        
+        $(document).trigger('selectionChanged');
+    }
+
+     /**
+      * Copies selected elements with full style preservation
+      */
+     function copySelectedElements() {
+         if (!editMode) return;
+         const $selected = $('.selected');
+         if ($selected.length === 0) return;
+         
+         const newElements = [];
+         let offsetIncrement = 0;
+
+         $selected.each(function() {
+             const $original = $(this);
+             const elementType = $original.attr('data-element-type');
+             const documentArea = $original.closest('.document')[0];
+             if (!documentArea) return true;
+
+             const newLeft = (parseFloat($original.css('left')) || 0) + 20 + offsetIncrement;
+             const newTop = (parseFloat($original.css('top')) || 0) + 20 + offsetIncrement;
+             const width = $original.outerWidth();
+             const height = $original.outerHeight();
+             let newElement = null;
+
+             try {
+                 if (elementType === 'text') {
+                     newElement = copyTextElement($original, documentArea, newLeft, newTop, width, height);
+                 } else if (elementType === 'image_frame') {
+                     newElement = copyImageElement($original, documentArea, newLeft, newTop, width, height);
+                 } else if (elementType === 'rectangle') {
+                     newElement = copyRectangleElement($original, documentArea, newLeft, newTop, width, height);
+                                 } else {
+                     // Generic copy for unknown element types
+                     newElement = copyGenericElement($original, documentArea, newLeft, newTop);
+                 }
+
+                 if (newElement) {
+                     newElements.push(newElement);
+                     offsetIncrement += 5;
+                 }
+             } catch (error) {
+                 console.error('Error copying element:', error);
+             }
+         });
+
+                 if (newElements.length > 0) {
+            // Keep original selection, don't auto-select copied elements
+            console.log('Copied', newElements.length, 'elements');
+        }
+     }
+
+     /**
+      * Helper function to copy text elements
+      */
+     function copyTextElement($original, documentArea, left, top, width, height) {
+         const $content = $original.find('.text-content');
+         if (!$content.length) return null;
+
+         const newElement = createTextBox(
+             documentArea, left, top, width, height,
+             $content.text(), $content.css('font-size')
+         );
+
+         if (newElement) {
+             // Copy all text styles
+             const $newContent = $(newElement).find('.text-content');
+             if ($newContent.length) {
+                 $newContent.css({
+                     fontFamily: $content.css('font-family'),
+                     fontSize: $content.css('font-size'),
+                     fontWeight: $content.css('font-weight'),
+                     fontStyle: $content.css('font-style'),
+                     textDecoration: $content.css('text-decoration'),
+                     color: $content.css('color'),
+                     textAlign: $content.css('text-align'),
+                     lineHeight: $content.css('line-height'),
+                     letterSpacing: $content.css('letter-spacing')
+                 });
+             }
+             
+             // Copy element-level styles
+             copyElementStyles($original, $(newElement));
+         }
+
+         return newElement;
+     }
+
+     /**
+      * Helper function to copy image elements
+      */
+     function copyImageElement($original, documentArea, left, top, width, height) {
+         const newElement = createImageFrame(documentArea, left, top, width, height);
+         
+         if (newElement) {
+             // Copy image if it exists
+             const $originalImg = $original.find('.element-content img');
+             if ($originalImg.length && $originalImg.attr('src') && newElement.setImage) {
+                 newElement.setImage($originalImg.attr('src'));
+             }
+             
+             // Copy element-level styles
+             copyElementStyles($original, $(newElement));
+         }
+
+         return newElement;
+     }
+
+     /**
+      * Helper function to copy rectangle elements
+      */
+     function copyRectangleElement($original, documentArea, left, top, width, height) {
+         const newElement = createRectangle(documentArea, left, top, width, height);
+         
+         if (newElement) {
+             // Copy rectangle background styles
+             const originalBg = $original.find('.rectangle-bg')[0];
+             const newBg = $(newElement).find('.rectangle-bg')[0];
+             
+             if (originalBg && newBg) {
+                 $(newBg).css({
+                     backgroundColor: $(originalBg).css('background-color'),
+                     borderColor: $(originalBg).css('border-color'),
+                     borderWidth: $(originalBg).css('border-width'),
+                     borderStyle: $(originalBg).css('border-style'),
+                     borderRadius: $(originalBg).css('border-radius'),
+                     opacity: $(originalBg).css('opacity')
+                 });
+             }
+             
+             // Copy element-level styles
+             copyElementStyles($original, $(newElement));
+         }
+
+         return newElement;
+     }
+
+
+
+     /**
+      * Helper function to copy generic/unknown elements
+      */
+     function copyGenericElement($original, documentArea, left, top) {
+         const newElement = $original.clone(true)[0];
+         
+         $(newElement).css({ left: left + 'px', top: top + 'px' });
+         
+         // Generate new ID if it has one
+         if (newElement.id) {
+             newElement.id = newElement.id + '-copy-' + Date.now();
+         }
+         
+         documentArea.appendChild(newElement);
+         makeElementsDraggable($(newElement));
+
+         return newElement;
+     }
+
+     /**
+      * Helper function to copy common element styles
+      */
+     function copyElementStyles($original, $new) {
+         // Copy common CSS properties
+         const stylesToCopy = [
+             'transform', 'z-index', 'opacity', 'filter',
+             'box-shadow', 'border-radius', 'background-color'
+         ];
+         
+         stylesToCopy.forEach(style => {
+             const value = $original.css(style);
+             if (value && value !== 'none' && value !== 'auto') {
+                 $new.css(style, value);
+             }
+         });
+         
+         // Copy group-id if it exists (but generate new group for copied elements)
+         const originalGroupId = $original.attr('data-group-id');
+         if (originalGroupId) {
+             const newGroupId = 'group-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
+             $new.attr('data-group-id', newGroupId);
+             $new.addClass('grouped-element');
+         }
+     }
+
+     /**
+      * Shows a context menu with more actions
+      */
+     function showMoreActionsMenu(button) {
+         const $selected = $('.selected');
+         if ($selected.length === 0) return;
+         
+         // Simple implementation - you can expand this to show a proper context menu
+         const actions = [
+             'Bring to Front',
+             'Send to Back', 
+             'Duplicate in Place',
+             'Lock/Unlock',
+             'Align Left',
+             'Align Center',
+             'Align Right'
+         ];
+         
+         const choice = prompt('More Actions:\n' + actions.map((action, i) => `${i + 1}. ${action}`).join('\n') + '\n\nEnter number:');
+         
+         if (choice) {
+             const actionIndex = parseInt(choice) - 1;
+             if (actionIndex >= 0 && actionIndex < actions.length) {
+                 executeMoreAction(actions[actionIndex], $selected);
+             }
+         }
+     }
+
+     /**
+      * Executes additional actions from the more menu
+      */
+     function executeMoreAction(action, $selected) {
+         switch(action) {
+             case 'Bring to Front':
+                 $selected.css('z-index', 1000);
+                 break;
+             case 'Send to Back':
+                 $selected.css('z-index', 1);
+                 break;
+             case 'Duplicate in Place':
+                 copySelectedElements();
+                 // Move copies back to original position
+                 setTimeout(() => {
+                     $('.selected').each(function() {
+                         const $this = $(this);
+                         $this.css({
+                             left: (parseFloat($this.css('left')) - 20) + 'px',
+                             top: (parseFloat($this.css('top')) - 20) + 'px'
+                         });
+                     });
+                 }, 100);
+                 break;
+             case 'Lock/Unlock':
+                 $selected.each(function() {
+                     $(this).toggleClass('locked');
+                     if ($(this).hasClass('locked')) {
+                         $(this).draggable('disable');
+                     } else {
+                         $(this).draggable('enable');
+                     }
+                 });
+                 break;
+             case 'Align Left':
+                 alignElements($selected, 'left');
+                 break;
+             case 'Align Center':
+                 alignElements($selected, 'center');
+                 break;
+             case 'Align Right':
+                 alignElements($selected, 'right');
+                 break;
+         }
+     }
+
+     /**
+      * Aligns multiple elements
+      */
+     function alignElements($elements, direction) {
+         if ($elements.length < 2) return;
+         
+         let targetPosition;
+         
+         if (direction === 'left') {
+             targetPosition = Math.min(...$elements.map(function() {
+                 return parseFloat($(this).css('left')) || 0;
+             }).get());
+             $elements.each(function() {
+                 $(this).css('left', targetPosition + 'px');
+             });
+         } else if (direction === 'right') {
+             targetPosition = Math.max(...$elements.map(function() {
+                 return (parseFloat($(this).css('left')) || 0) + $(this).outerWidth();
+             }).get());
+             $elements.each(function() {
+                 $(this).css('left', (targetPosition - $(this).outerWidth()) + 'px');
+             });
+         } else if (direction === 'center') {
+             const positions = $elements.map(function() {
+                 const left = parseFloat($(this).css('left')) || 0;
+                 return left + $(this).outerWidth() / 2;
+             }).get();
+             targetPosition = positions.reduce((a, b) => a + b) / positions.length;
+             $elements.each(function() {
+                 $(this).css('left', (targetPosition - $(this).outerWidth() / 2) + 'px');
+             });
+         }
+         
+         // Update group outline and action bar
+         updateGroupOutline();
+         setTimeout(() => $(document).trigger('selectionChanged'), 50);
+     }
+
+  });

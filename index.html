@@ -124,14 +124,28 @@
                         <div class="document" id="document">    </div>
                     </div>
                 </div>
-
-                
-
             </div>
             <div id="marquee-selection"></div>
             <div id="group-selection-outline" style="display:none;"></div>
         </div>
     </div>
+
+    <!-- Universal Floating Action Bar -->
+    <div id="universal-action-bar" class="action-bar-hidden">
+        <div class="action-btn" data-action="group" title="Group" style="display: none;">
+            <i class="fas fa-object-group"></i>
+        </div>
+        <div class="action-btn" data-action="copy" title="Copy">
+            <i class="fas fa-copy"></i>
+        </div>
+        <div class="action-btn" data-action="delete" title="Delete">
+            <i class="fas fa-trash"></i>
+        </div>
+        <div class="action-btn" data-action="more" title="More">
+            <i class="fas fa-ellipsis-h"></i>
+        </div>
+    </div>
+
     <div class="zoom-slider-container">
         <input type="range" id="zoom-slider" min="25" max="200" value="100">
         <span id="zoom-percentage">100%</span>
@@ -201,17 +215,6 @@
     </div>
 
     <input type="file" id="image-file-input" accept="image/*" style="display: none;">
-
-    <!-- Add new global floating action bar -->
-    <div id="floating-action-bar" style="display:none; position:absolute; z-index:5000;">
-      <div class="floating-actions">
-        <div class="floating-action-btn group-btn" title="Group"><i class="fas fa-object-group"></i></div>
-        <div class="floating-action-btn lock-btn" title="Lock"><i class="fas fa-lock"></i></div>
-        <div class="floating-action-btn copy-btn" title="Copy"><i class="fas fa-copy"></i></div>
-        <div class="floating-action-btn delete-btn" title="Delete"><i class="fas fa-trash"></i></div>
-        <div class="floating-action-btn more-btn" title="More"><i class="fas fa-ellipsis-h"></i></div>
-      </div>
-    </div>
 
     <!-- Include jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
