@@ -111,7 +111,6 @@ body {
     padding: 8px;
     cursor: move;
     user-select: none;
-    transform: translate(-50%, -50%); /* Center the element on cursor */
 }
 
 .draggable-element.element-text {

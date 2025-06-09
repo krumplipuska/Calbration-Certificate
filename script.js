@@ -137,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const box = document.createElement('div');
         box.className = 'text-box'; // Keep this for existing styles/selectors
+        box.classList.add('draggable-element');
         box.style.left = left + 'px';
         box.style.top = top + 'px';
         box.style.width = width + 'px';
@@ -171,6 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const frame = document.createElement('div');
         frame.className = 'image-frame';
+        frame.classList.add('draggable-element');
         frame.style.left = left + 'px';
         frame.style.top = top + 'px';
         frame.style.width = width + 'px';
@@ -220,6 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const rectElement = document.createElement('div');
         rectElement.className = 'rectangle-element';
+        rectElement.classList.add('draggable-element');
         rectElement.style.left = left + 'px';
         rectElement.style.top = top + 'px';
         rectElement.style.width = width + 'px';
@@ -286,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!editMode) return;
 
         // If the click is on an element or any of the toolbars/panels, do nothing.
-        if ($(e.target).closest('.text-box, .image-frame, .rectangle-element, .group-container, .text-toolbar, .element-details-panel, #floating-action-bar').length) {
+        if ($(e.target).closest('.draggable-element, .group-container, .text-toolbar, .element-details-panel, #floating-action-bar').length) {
             return;
         }
 
@@ -787,7 +790,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setEditMode(on) {
         editMode = on;
         document.body.classList.toggle('edit-mode-active', editMode);
-        const allElements = '.text-box, .image-frame, .rectangle-element';
+        const allElements = '.draggable-element';
 
         if (editMode) {
             updateCurrentPageBasedOnCenter(); // Set current page when entering edit mode
@@ -838,7 +841,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setEditMode(false);
 
     // Initialize existing elements found in the loaded HTML
-    document.querySelectorAll('.text-box, .image-frame, .rectangle-element').forEach(box => {
+    document.querySelectorAll('[data-element-type]').forEach(box => {
         // Ensure basic attributes
         if (!box.id) {
             const typeClass = box.classList.contains('text-box') ? 'textbox' :
@@ -852,6 +855,9 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (box.classList.contains('image-frame')) type = 'image_frame';
             else if (box.classList.contains('rectangle-element')) type = 'rectangle';
             box.setAttribute('data-element-type', type);
+        }
+        if (!box.classList.contains('draggable-element')) {
+            box.classList.add('draggable-element');
         }
 
         // Ensure handles and actions HTML structure exists (for elements loaded from static HTML)
@@ -1135,7 +1141,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const documentArea = pageContainer.querySelector('.document');
 
                 if (documentArea) {
-                    const selected = documentArea.querySelector('.text-box.selected');
+                    const selected = documentArea.querySelector('.draggable-element.selected');
                     const floatingActions = selected ? selected.querySelector('.floating-actions') : null;
                     const resizeHandles = selected ? selected.querySelectorAll('.resize-handle') : null;
 
@@ -1600,7 +1606,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let dragPositions = null;
 
     // Selection by click with group support
-    $(document).on('mousedown', '.text-box, .image-frame, .rectangle-element, .group-container', function(e) {
+    $(document).on('mousedown', '.draggable-element, .group-container', function(e) {
         if (!editMode) return;
         // Do not interfere if clicking on handles, buttons, or an element already being dragged by UI, or if the target is contenteditable.
         if ($(e.target).closest('.resize-handle, .floating-action-btn, .ui-draggable-dragging').length || e.target.isContentEditable) {
@@ -1632,7 +1638,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Clear previouslySelected flag for elements not currently part of the interaction
-        $('.text-box, .image-frame, .rectangle-element, .group-container').not(targetEl).removeData('previouslySelected');
+        $('.draggable-element, .group-container').not(targetEl).removeData('previouslySelected');
         
         // DO NOT call e.preventDefault() here. Let jQuery UI Draggable decide.
     });
@@ -1647,7 +1653,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     $(document).on('mousedown', '.document', function(e) {
         if (!editMode) return;
-        if ($(e.target).closest('.text-box, .image-frame, .rectangle-element, .group-container').length) return;
+        if ($(e.target).closest('.draggable-element, .group-container').length) return;
         lassoStart = { x: e.pageX, y: e.pageY };
         $lassoBox.css({
             left: lassoStart.x,
@@ -1678,7 +1684,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isMulti = ev.shiftKey || ev.ctrlKey || ev.metaKey;
 
             const toSelect = [];
-            $('.text-box, .image-frame, .rectangle-element').each(function() {
+            $('.draggable-element').each(function() {
                 const $el = $(this);
                 const offset = $el.offset();
                 const w = $el.outerWidth();
@@ -1701,13 +1707,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Resizing cursor and start for individual or grouped elements
-    $(document).on('mousemove', '.text-box.selected, .image-frame.selected, .rectangle-element.selected', function(e) {
+    $(document).on('mousemove', '.draggable-element.selected', function(e) {
         if (!editMode || resizing) return;
         const dir = getResizeDir(this, e);
         this.style.cursor = dir ? cursorForDir(dir) : 'move';
     });
 
-    $(document).on('mousedown', '.text-box.selected, .image-frame.selected, .rectangle-element.selected', function(e) {
+    $(document).on('mousedown', '.draggable-element.selected', function(e) {
         if (!editMode) return;
         const dir = getResizeDir(this, e);
         if (dir) {
@@ -1807,7 +1813,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // console.log("Selected count:", selectedCount);
 
         // First, hide all individual floating actions by default
-        $('.text-box, .image-frame, .rectangle-element, .group-container').find('.floating-actions').hide();
+        $('.draggable-element, .group-container').find('.floating-actions').hide();
 
         if (selectedCount > 1 && editMode) {
             // console.log("Multiple items selected in edit mode - attempting to show group UI.");
@@ -2049,7 +2055,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial call for existing elements and call after new elements are created
     // Ensure this is called AFTER jQuery and jQuery UI are loaded.
     $(function() { // Ensures DOM is ready
-        makeElementsDraggable('.text-box, .image-frame, .rectangle-element');
+        makeElementsDraggable('.draggable-element');
     });
     // ... rest of your script ...
     // Remember to call makeElementsDraggable(newlyCreatedElement) in your element creation functions.
@@ -2213,7 +2219,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Recursively make children draggable if they were part of the original group structure
                 // This assumes children are correctly cloned. jQuery UI draggable might need re-init for children if not.
-                $(newElement).find('.text-box, .image-frame, .rectangle-element, .group-container').each(function() {
+                $(newElement).find('.draggable-element, .group-container').each(function() {
                     makeElementsDraggable($(this)); 
                 });
             }
@@ -2235,7 +2241,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
         // Ensure the parent element of these actions is selected before deleting
         // This is a safeguard, typically it should be if actions are visible.
-        const $elementContainer = $(this).closest('.text-box, .image-frame, .rectangle-element, .group-container');
+        const $elementContainer = $(this).closest('.draggable-element, .group-container');
         if (!$elementContainer.hasClass('selected')) {
             $('.selected').removeClass('selected');
             $elementContainer.addClass('selected');
@@ -2246,7 +2252,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     $(document).on('click', '.floating-actions .copy-btn', function(e) {
         e.stopPropagation();
-        const $elementContainer = $(this).closest('.text-box, .image-frame, .rectangle-element, .group-container');
+        const $elementContainer = $(this).closest('.draggable-element, .group-container');
         if (!$elementContainer.hasClass('selected')) {
             $('.selected').removeClass('selected');
             $elementContainer.addClass('selected');
@@ -2287,7 +2293,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Hide on deselect
     $(document).on('mousedown', function(e) {
         if (!editMode) return;
-        if ($(e.target).closest('.text-box, .image-frame, .rectangle-element, .text-toolbar, .element-details-panel, #universal-action-bar, .action-btn').length) {
+        if ($(e.target).closest('.draggable-element, .text-toolbar, .element-details-panel, #universal-action-bar, .action-btn').length) {
             return;
         }
         if ($('.selected').length > 0) {
