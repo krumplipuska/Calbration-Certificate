@@ -1027,7 +1027,7 @@ body {
     background: rgba(225, 6, 0, 0.08);
     border-radius: 6px;
     z-index: 25;
-    pointer-events: none;
+    pointer-events: auto; /* allow interactions for resizing */
     display: none;
 }
 
