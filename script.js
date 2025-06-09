@@ -260,47 +260,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
    
 
-    // Generic select element function
-    function selectElement(element, event) {
-        const isMulti = event && (event.shiftKey || event.ctrlKey || event.metaKey);
-        if (!isMulti) {
-            // Deselect all others
-            selectedBoxes.forEach(box => {
-                box.classList.remove('selected');
-                const fa = box.querySelector('.floating-actions');
-                if (fa) fa.style.display = 'none';
-                if (box.getAttribute('data-element-type') === 'text') {
-                    const content = box.querySelector('.text-content');
-                    if (content) content.contentEditable = false;
-                }
-            });
-            selectedBoxes = [element];
-        } else {
-            // Toggle selection
-            if (selectedBoxes.includes(element)) {
-                element.classList.remove('selected');
-                const fa = element.querySelector('.floating-actions');
-                if (fa) fa.style.display = 'none';
-                selectedBoxes = selectedBoxes.filter(box => box !== element);
-            } else {
-                selectedBoxes.push(element);
-            }
+    // ---- Universal Selection Helpers ----
+    function clearSelection() {
+        const had = $('.selected').length > 0;
+        $('.selected').removeClass('selected');
+        if (had) $(document).trigger('selectionChanged');
+    }
+
+    function selectElements(elements, additive = false) {
+        if (!additive) {
+            clearSelection();
         }
-        // Mark all selected
-        selectedBoxes.forEach(box => {
-            box.classList.add('selected');
-            const fa = box.querySelector('.floating-actions');
-            if (fa && editMode) fa.style.display = 'flex';
-        });
-        // Show toolbar for last selected
-        if (selectedBoxes.length > 0) {
-            showToolbarForBox(selectedBoxes[selectedBoxes.length - 1]);
-            showElementDetails(selectedBoxes[selectedBoxes.length - 1]);
-        } else {
-            hideToolbar();
-            hideDetailsPanel();
+        const $els = $(elements);
+        if ($els.length) {
+            $els.addClass('selected');
+            $(document).trigger('selectionChanged');
+        } else if (!additive) {
+            $(document).trigger('selectionChanged');
         }
-        updateMultiSelectToolbarAndOutline();
     }
 
     // Deselect on click outside
@@ -315,10 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // If we are here, the click was on the "canvas" or another empty area.
         // If there is a selection, clear it.
-        if ($('.selected').length > 0) {
-            $('.selected').removeClass('selected');
-            $(document).trigger('selectionChanged'); // This will handle hiding UI.
-        }
+        clearSelection();
     });
 
 
@@ -592,7 +566,8 @@ document.addEventListener('DOMContentLoaded', () => {
             size = Math.max(8, size - 2);
             content.style.fontSize = size + 'px';
             fontSizeDisplay.textContent = size;
-            setBoxMinHeight(selectedBoxes[selectedBoxes.length - 1], content.style.fontSize);
+            const selectedBox = $('.selected').last()[0];
+            if (selectedBox) setBoxMinHeight(selectedBox, content.style.fontSize);
             content.focus();
         }
     });
@@ -603,7 +578,8 @@ document.addEventListener('DOMContentLoaded', () => {
             size = Math.min(200, size + 2);
             content.style.fontSize = size + 'px';
             fontSizeDisplay.textContent = size;
-            setBoxMinHeight(selectedBoxes[selectedBoxes.length - 1], content.style.fontSize);
+            const selectedBox = $('.selected').last()[0];
+            if (selectedBox) setBoxMinHeight(selectedBox, content.style.fontSize);
             content.focus();
         }
     });
@@ -1557,48 +1533,23 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const $this = $(this);
         const isMultiSelect = e.shiftKey || e.ctrlKey || e.metaKey;
-        
-        // Store current selection state for comparison
-        const currentSelected = $('.selected').get();
-        
+        const groupMembers = getGroupMembers(this);
+
         if (isMultiSelect) {
-            // Multi-select: Toggle selection of the clicked element and its group
-            const groupMembers = getGroupMembers(this);
-            const allGroupSelected = groupMembers.every(member => $(member).hasClass('selected'));
-            
-            if (allGroupSelected) {
-                // If all group members are selected, deselect them
+            const allSelected = $(groupMembers).filter('.selected').length === groupMembers.length;
+            if (allSelected) {
                 $(groupMembers).removeClass('selected');
+                $(document).trigger('selectionChanged');
             } else {
-                // Otherwise, select all group members
-                $(groupMembers).addClass('selected');
+                selectElements(groupMembers, true);
             }
         } else {
-            // Single select: Check if element is part of a group and select accordingly
-            const groupMembers = getGroupMembers(this);
-            const anyGroupSelected = groupMembers.some(member => $(member).hasClass('selected'));
-            
-            if (!anyGroupSelected) {
-                // No group members selected, select the group/element
-                $('.selected').removeClass('selected');
-                $(groupMembers).addClass('selected');
-            }
-            // If group is already selected, don't change selection (allows dragging)
+            selectElements(groupMembers, false);
         }
-        
-        // Check if selection actually changed
-        const newSelected = $('.selected').get();
-        const selectionChanged = currentSelected.length !== newSelected.length || 
-                               !currentSelected.every(el => newSelected.includes(el));
-        
-        if (selectionChanged) {
-            $(document).trigger('selectionChanged');
-        }
-        
+
         // Clear previouslySelected flag for elements not currently part of the interaction
-        $('.text-box, .image-frame, .rectangle-element').not($this).removeData('previouslySelected');
+        $('.text-box, .image-frame, .rectangle-element').not(this).removeData('previouslySelected');
         
         // DO NOT call e.preventDefault() here. Let jQuery UI Draggable decide.
     });
@@ -1641,28 +1592,26 @@ document.addEventListener('DOMContentLoaded', () => {
             let y1 = Math.min(lassoStart.y, ev.pageY);
             let x2 = Math.max(lassoStart.x, ev.pageX);
             let y2 = Math.max(lassoStart.y, ev.pageY);
-            let isMulti = ev.shiftKey || ev.ctrlKey || ev.metaKey;
-            if (!isMulti) $('.selected').removeClass('selected');
-            
-            let selectionChanged = false;
+            const isMulti = ev.shiftKey || ev.ctrlKey || ev.metaKey;
+
+            const toSelect = [];
             $('.text-box, .image-frame, .rectangle-element').each(function() {
-                let $el = $(this);
-                let offset = $el.offset();
-                let w = $el.outerWidth();
-                let h = $el.outerHeight();
+                const $el = $(this);
+                const offset = $el.offset();
+                const w = $el.outerWidth();
+                const h = $el.outerHeight();
                 if (offset.left + w > x1 && offset.left < x2 && offset.top + h > y1 && offset.top < y2) {
-                    if (!$el.hasClass('selected')) {
-                        selectionChanged = true;
-                    }
-                    $el.addClass('selected');
+                    toSelect.push(...getGroupMembers(this));
                 }
             });
-            
-            // Always trigger selectionChanged after lasso to ensure action bar appears
-            if (selectionChanged || $('.selected').length > 0) {
-                $(document).trigger('selectionChanged');
+
+            const unique = [...new Set(toSelect)];
+            if (unique.length > 0) {
+                selectElements(unique, isMulti);
+            } else if (!isMulti) {
+                clearSelection();
             }
-            
+
             lassoStart = null;
         });
         e.preventDefault();
