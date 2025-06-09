@@ -2669,10 +2669,11 @@ document.addEventListener('DOMContentLoaded', () => {
       */
      function copyElementStyles($original, $new) {
          // Copy common CSS properties
-         const stylesToCopy = [
-             'transform', 'z-index', 'opacity', 'filter',
-             'box-shadow', 'border-radius', 'background-color'
-         ];
+        const stylesToCopy = [
+            'transform', 'z-index', 'opacity', 'filter',
+            // Do not copy box-shadow to avoid transferring selection borders
+            'border-radius', 'background-color'
+        ];
          
          stylesToCopy.forEach(style => {
              const value = $original.css(style);
