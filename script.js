@@ -2202,32 +2202,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const groupBtn = actionBar ? actionBar.querySelector('[data-action="group"]') : null;
         if (groupBtn) {
             const groupIds = $selected.toArray().map(el => $(el).attr('data-group-id'));
-            const hasGroupedElements = groupIds.some(id => id);
             const allHaveGroup = groupIds.length > 0 && groupIds.every(id => id);
             const firstGroupId = groupIds[0];
             const allSameGroup = allHaveGroup && groupIds.every(id => id === firstGroupId);
-            
+
             console.log('Action bar update:', {
                 selectedCount: $selected.length,
-                hasGroupedElements,
-                allSameGroup,
-                firstElementGroupId: $selected.length > 0 ? $($selected[0]).attr('data-group-id') : null
+                allSameGroup
             });
-            
+
             if ($selected.length > 1) {
-                groupBtn.style.display = 'flex';
-                if (allSameGroup) {
-                    groupBtn.innerHTML = '<i class="fas fa-object-ungroup"></i>';
-                    groupBtn.title = 'Ungroup';
-                    groupBtn.setAttribute('data-action', 'ungroup');
-                    console.log('Showing UNGROUP button');
-                } else {
-                    groupBtn.innerHTML = '<i class="fas fa-object-group"></i>';
-                    groupBtn.title = 'Group';
-                    groupBtn.setAttribute('data-action', 'group');
-                    console.log('Showing GROUP button');
-                }
-            } else if (hasGroupedElements) {
                 groupBtn.style.display = 'flex';
                 if (allSameGroup) {
                     groupBtn.innerHTML = '<i class="fas fa-object-ungroup"></i>';
