@@ -2325,7 +2325,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update action bar and group outline on selection changes
     $(document).on('selectionChanged', function() {
         setTimeout(() => {
-            showActionBar();
+            if (!$('body').hasClass('dragging-active') && !resizing) {
+                showActionBar();
+            }
             updateGroupOutline(); // Show group outline for multiple selections
         }, 50); // Increased delay to ensure elements are fully rendered
     });
