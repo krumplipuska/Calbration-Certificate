@@ -1921,8 +1921,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const zoom = getCurrentZoom();
                 const dragInfo = {
-                    startX: event.pageX,
-                    startY: event.pageY,
                     zoom,
                     elements: []
                 };
@@ -1947,8 +1945,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const dragInfo = ui.helper.data('dragInfo');
                 if (!dragInfo) return;
 
-                const dx = (event.pageX - dragInfo.startX) / dragInfo.zoom;
-                const dy = (event.pageY - dragInfo.startY) / dragInfo.zoom;
+                const baseLeft = ui.position.left;
+                const baseTop = ui.position.top;
+                const dx = (baseLeft - dragInfo.elements[0].startLeft) / dragInfo.zoom;
+                const dy = (baseTop - dragInfo.elements[0].startTop) / dragInfo.zoom;
 
                 dragInfo.elements.forEach((info, index) => {
                     const newLeft = info.startLeft + dx;
