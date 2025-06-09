@@ -2199,8 +2199,10 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('showActionBar called with', $selected.length, 'selected elements');
 
         // Show/hide and update group button based on selection
-        const groupBtn = actionBar ? actionBar.querySelector('[data-action="group"]') : null;
-        if (groupBtn) {
+        const groupBtn = actionBar ? document.getElementById('group-btn') : null;
+        const ungroupBtn = actionBar ? document.getElementById('ungroup-btn') : null;
+
+        if (groupBtn && ungroupBtn) {
             const groupIds = $selected.toArray().map(el => $(el).attr('data-group-id'));
             const allHaveGroup = groupIds.length > 0 && groupIds.every(id => id);
             const firstGroupId = groupIds[0];
@@ -2212,6 +2214,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if ($selected.length > 1) {
+                if (allSameGroup) {
+                    groupBtn.style.display = 'none';
+                    ungroupBtn.style.display = 'flex';
+                    console.log('Showing UNGROUP button');
+                } else {
+                    groupBtn.style.display = 'flex';
+                    ungroupBtn.style.display = 'none';
                 groupBtn.style.display = 'flex';
                 if (allSameGroup) {
                     groupBtn.innerHTML = '<i class="fas fa-object-ungroup"></i>';
@@ -2226,10 +2235,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 groupBtn.style.display = 'none';
-                console.log('Hiding group button');
+                ungroupBtn.style.display = 'none';
+                console.log('Hiding group and ungroup buttons');
             }
         } else {
-            console.warn('Group button not found in action bar');
+            console.warn('Group or ungroup button not found in action bar');
         }
 
         // Position the bar
