@@ -2227,6 +2227,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     groupBtn.setAttribute('data-action', 'group');
                     console.log('Showing GROUP button');
                 }
+            } else if (hasGroupedElements) {
+                groupBtn.style.display = 'flex';
+                if (allSameGroup) {
+                    groupBtn.innerHTML = '<i class="fas fa-object-ungroup"></i>';
+                    groupBtn.title = 'Ungroup';
+                    groupBtn.setAttribute('data-action', 'ungroup');
+                    console.log('Showing UNGROUP button');
+                } else {
+                    groupBtn.innerHTML = '<i class="fas fa-object-group"></i>';
+                    groupBtn.title = 'Group';
+                    groupBtn.setAttribute('data-action', 'group');
+                    console.log('Showing GROUP button');
+                }
             } else {
                 groupBtn.style.display = 'none';
                 console.log('Hiding group button');
