@@ -1014,23 +1014,6 @@ body {
 
 /* Group button visibility is controlled by JavaScript */
 
-/* Visual indicator for grouped elements */
-.grouped-element {
-    box-shadow: 0 0 0 1px rgba(40, 167, 69, 0.3) !important;
-}
-
-.grouped-element::before {
-    content: '';
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 8px;
-    height: 8px;
-    background: #28a745;
-    border-radius: 50%;
-    z-index: 100;
-    pointer-events: none;
-}
 
 /* Remove old floating action styles */
 .no-zoom-scale, #multi-select-toolbar, #floating-action-bar {
