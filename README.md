@@ -33,7 +33,7 @@ A modern web application for creating documents with drag-and-drop functionality
 
 - Built with vanilla JavaScript, HTML5, and CSS3
 - Uses the HTML5 Drag and Drop API
-- jQuery UI provides enhanced drag-and-drop interactions
+- Custom JavaScript handles drag-and-drop interactions for selected elements
 - html2canvas and jsPDF power the export to PDF feature
 - Responsive design that works on different screen sizes
 - Font Awesome provides icons
